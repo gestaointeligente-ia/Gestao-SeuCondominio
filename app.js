@@ -1439,9 +1439,46 @@ let vigiaFechamentoPiP = null;
 let tomAtivoGem = 'amigavel'; // amigavel, padrao, sindico, passos, curto
 let ultimaRespostaGeradaGem = '';
 
-const ACOES_RAPIDAS_PADRAO = [];
+const ACOES_RAPIDAS_PADRAO = [
+    {
+        id: 'qa_saudar',
+        icone: 'waving_hand',
+        cor: '#6ee7b7',
+        titulo: 'Saudar',
+        texto: 'Olá, {saudacao} {nome}! Tudo bem? Em que posso ajudar?'
+    },
+    {
+        id: 'qa_cond',
+        icone: 'apartment',
+        cor: '#fef08a',
+        titulo: 'Pedir Cond.',
+        texto: 'Para que eu possa localizar o cadastro e verificar no sistema, consegue me informar o nome do condomínio, por gentileza?'
+    },
+    {
+        id: 'qa_email_print',
+        icone: 'alternate_email',
+        cor: '#f472b6',
+        titulo: 'Pedir E-mail/Print',
+        texto: 'Me informa o e-mail cadastrado e a unidade, por gentileza. Caso esteja aparecendo algum erro na tela, mande um print também para eu verificar!'
+    },
+    {
+        id: 'qa_cnpj',
+        icone: 'badge',
+        cor: '#38bdf8',
+        titulo: 'Pedir CNPJ/CPF',
+        texto: 'Olá, {saudacao} {nome}! Consegue me informar o CNPJ do condomínio (ou CPF do titular) para que eu possa localizar o cadastro no sistema, por gentileza?'
+    },
+    {
+        id: 'qa_comercial',
+        icone: 'storefront',
+        cor: '#c084fc',
+        titulo: 'Transf. Comercial',
+        texto: 'Olá, {saudacao} {nome}! Como essa solicitação envolve condições comerciais/contratuais, vou transferir o seu atendimento para o nosso Setor Comercial dar andamento com você, combinado? Só um instante!'
+    }
+];
 
-let listaAcoesRapidas = JSON.parse(localStorage.getItem('sc_acoes_rapidas_v1')) || ACOES_RAPIDAS_PADRAO;
+let acoesSalvasCache = JSON.parse(localStorage.getItem('sc_acoes_rapidas_v1'));
+let listaAcoesRapidas = (Array.isArray(acoesSalvasCache) && acoesSalvasCache.length > 0) ? acoesSalvasCache : ACOES_RAPIDAS_PADRAO;
 
 let configGeminiGem = JSON.parse(localStorage.getItem('sc_gemini_gem_config')) || {
     apiKey: '',
@@ -2127,6 +2164,8 @@ async function copiarRascunhoHUD() {
     await copiarTextoUniversal(val);
     mostrarToast("📝 Rascunho copiado!");
 }
+
+setTimeout(inicializarBarraCopilotHUD, 200);
 
 // ==============================================================
 // JANELA FLUTUANTE COM ESPELHAMENTO DE FUNÇÕES E SCROLL LISO
