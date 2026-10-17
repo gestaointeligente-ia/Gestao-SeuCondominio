@@ -3087,18 +3087,7 @@ function baixarPlanilhaExcelPronta() {
 // ==============================================================
 // MÓDULO 4: MOTOR DO DIÁRIO CÓSMICO PRO (CTRL+Z TOTAL, 7 LINHAS FIXAS E NUMERAÇÃO SELECIONÁVEL)
 // ==============================================================
-let listaChatPessoal = JSON.parse(localStorage.getItem('sc_chat_pessoal_v1')) || [
-    {
-        id: 1700000000001,
-        texto: `🌌 <strong>Bem-vindo à sua Cápsula Pessoal Pro, Ricardo!</strong><br>Tudo pronto e blindado:<br><span style="color:#6ee7b7; font-weight:700;">1. Numeração 100% selecionável e colorível!</span><br>2. <strong>Ctrl + Z</strong> funcionando em absolutamente todas as ações!<br>3. Caixa travada em <strong>7 linhas</strong> com expansão sob comando!`,
-        midia_tipo: "",
-        midia_url: "",
-        midia_nome: "",
-        cor_balao: "roxo",
-        fixado: true,
-        criado_em: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    }
-];
+let listaChatPessoal = JSON.parse(localStorage.getItem('sc_chat_pessoal_v1')) || [];
 
 let filtroChatAtual = 'todos';
 let listaAnexosStaging = [];
