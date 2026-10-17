@@ -4861,7 +4861,7 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
 
     userParts.push({ text: promptUsuario + textosDeArquivos });
 
-    const modelosMultimodais = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    const modelosMultimodais = ['gemini-3.8-flash', 'gemini-3.8-flash'];
     let ultimoErro = null;
 
     for (const mod of modelosMultimodais) {
