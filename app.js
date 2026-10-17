@@ -301,6 +301,7 @@ function iniciarCosmosInfinito(targetDocument = document) {
     requestAnimationFrame(animar);
 }
 
+const SCRIPTS_INICIAIS = [];
 let listaScripts = JSON.parse(localStorage.getItem('sc_cockpit_scripts_v5') || localStorage.getItem('sc_cockpit_scripts_v4') || localStorage.getItem('sc_cockpit_scripts_v3')) || SCRIPTS_INICIAIS;
 let categoriaAtiva = 'todas';
 if (localStorage.getItem('sc_modo_compacto') === null) {
