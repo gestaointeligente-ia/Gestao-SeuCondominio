@@ -2127,8 +2127,6 @@ async function copiarRascunhoHUD() {
     mostrarToast("📝 Rascunho copiado!");
 }
 
-setTimeout(inicializarBarraCopilotHUD, 200);
-
 // ==============================================================
 // JANELA FLUTUANTE COM ESPELHAMENTO DE FUNÇÕES E SCROLL LISO
 // ==============================================================
