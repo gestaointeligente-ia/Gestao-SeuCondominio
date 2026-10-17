@@ -4296,3 +4296,158 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==============================================================
+// 10. BLINDAGEM NÍVEL MÁXIMO: LOGIN SUPABASE AUTH + AUTO-SYNC
+// ==============================================================
+(function iniciarBlindagemSupabaseAuth() {
+    // 1. Injeta a Tela de Login Cósmica e o Botão de Trancar Cofre
+    const authOverlay = document.createElement('div');
+    authOverlay.id = 'cosmic-auth-gate';
+    authOverlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 9999999;
+        background: radial-gradient(circle at 50% 20%, rgba(126, 34, 206, 0.35), #020308 75%);
+        backdrop-filter: blur(18px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 20px;
+    `;
+
+    authOverlay.innerHTML = `
+        <div class="glass-card" style="width: 100%; max-width: 390px; padding: 28px 24px; border: 1px solid rgba(192, 132, 252, 0.5); box-shadow: 0 20px 50px rgba(0,0,0,0.95), 0 0 30px rgba(192, 132, 252, 0.2); text-align: center; display: flex; flex-direction: column; gap: 14px;">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle, #38bdf8, #7e22ce); display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);">
+                <span class="material-icons-round" style="font-size: 26px; color: white;">lock</span>
+            </div>
+            <div>
+                <h2 style="font-size: 17px; font-weight: 800; color: white; letter-spacing: 0.5px;">Cofre SC Smart Cockpit</h2>
+                <p style="font-size: 11.5px; color: #94a3b8; margin-top: 4px;">Acesso blindado por RLS • Autenticação Obrigatória</p>
+            </div>
+
+            <form id="form-login-supabase" style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                <div class="input-box">
+                    <label>SEU E-MAIL</label>
+                    <input type="email" id="auth-email" required placeholder="seu-email@exemplo.com" autocomplete="username" style="padding: 10px 12px; font-size: 13px;">
+                </div>
+                <div class="input-box">
+                    <label>SENHA DO COFRE</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••••••" autocomplete="current-password" style="padding: 10px 12px; font-size: 13px;">
+                </div>
+                <div id="auth-error-msg" style="display: none; color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); padding: 8px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 600; text-align: center;"></div>
+                <button type="submit" id="btn-submit-auth" class="btn-pip" style="margin-top: 6px; padding: 12px; font-size: 12px;">
+                    <span class="material-icons-round" style="font-size: 16px;">key</span> DESTRANCAR COFRE & SINCRONIZAR
+                </button>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(authOverlay);
+
+    // 2. Adiciona botões de Sincronizar e Sair (Logout) na Sidebar esquerda
+    const sidebarFooter = document.querySelector('.sidebar-footer');
+    if (sidebarFooter) {
+        const authControls = document.createElement('div');
+        authControls.style.cssText = 'display: flex; gap: 6px; width: 100%;';
+        authControls.innerHTML = `
+            <button type="button" class="btn-mini-tool" style="flex: 1; justify-content: center; border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;" onclick="baixarTudoDoSupabase()" data-tip="Buscar todos os cards salvos no Supabase">
+                <span class="material-icons-round" style="font-size: 14px;">cloud_download</span> Sync Nuvem
+            </button>
+            <button type="button" class="btn-mini-tool" style="flex: 1; justify-content: center; border-color: rgba(248, 113, 113, 0.4); color: #fca5a5;" onclick="trancarCofreLogout()" data-tip="Deslogar e limpar cache deste navegador">
+                <span class="material-icons-round" style="font-size: 14px;">lock</span> Trancar
+            </button>
+        `;
+        sidebarFooter.insertBefore(authControls, sidebarFooter.firstChild);
+    }
+
+    // 3. Função que puxa automaticamente os Cards e o Chat do Supabase ao logar!
+    window.baixarTudoDoSupabase = async function() {
+        if (!supabaseClient) return;
+        try {
+            const { data: cardsNuvem, error: errCards } = await supabaseClient
+                .from('sc_respostas_rapidas')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (errCards) throw errCards;
+
+            if (Array.isArray(cardsNuvem) && cardsNuvem.length > 0) {
+                listaScripts = cardsNuvem;
+                ['sc_cockpit_scripts_v3', 'sc_cockpit_scripts_v4', 'sc_cockpit_scripts_v5'].forEach(k => {
+                    localStorage.setItem(k, JSON.stringify(listaScripts));
+                });
+                renderizarPillsCategorias();
+                renderizarCards();
+                mostrarToast(`☁️ ${listaScripts.length} cards carregados do seu Cofre Supabase!`);
+            } else if (listaScripts.length > 0) {
+                // Se o Supabase estiver vazio mas você tiver cards locais, sobe eles para a nuvem
+                await sincronizarComNuvem();
+            }
+
+            // Sincroniza também o Diário / Chat Pessoal
+            await sincronizarChatComSupabase(false);
+        } catch (err) {
+            console.error("Erro ao sincronizar com Supabase:", err);
+            mostrarToast("⚠️ Erro de permissão RLS ou conexão: " + (err.message || ""));
+        }
+    };
+
+    // 4. Função de Logout (Trancar Cofre e limpar dados sensíveis da máquina local)
+    window.trancarCofreLogout = async function() {
+        if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+        }
+        // Limpa os dados locais para não deixar CPF/notas no PC caso você saia
+        ['sc_cockpit_scripts_v3', 'sc_cockpit_scripts_v4', 'sc_cockpit_scripts_v5', 'sc_chat_pessoal_v1'].forEach(k => {
+            localStorage.removeItem(k);
+        });
+        listaScripts = [];
+        listaChatPessoal = [];
+        renderizarPillsCategorias();
+        renderizarCards();
+        renderizarMensagensChat();
+        authOverlay.style.display = 'flex';
+        mostrarToast("🔒 Cofre trancado com segurança!");
+    };
+
+    // 5. Lógica do Formulário de Login
+    const formLogin = document.getElementById('form-login-supabase');
+    formLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value;
+        const errBox = document.getElementById('auth-error-msg');
+        const btn = document.getElementById('btn-submit-auth');
+
+        errBox.style.display = 'none';
+        btn.disabled = true;
+        btn.innerText = 'Verificando credenciais...';
+
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+
+            if (data.session) {
+                authOverlay.style.display = 'none';
+                mostrarToast("🔓 Bem-vindo, Ricardo! Sincronizando cofre...");
+                await baixarTudoDoSupabase();
+            }
+        } catch (err) {
+            errBox.style.display = 'block';
+            errBox.innerText = 'Acesso negado: E-mail ou senha incorretos.';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round" style="font-size: 16px;">key</span> DESTRANCAR COFRE & SINCRONIZAR';
+        }
+    });
+
+    // 6. Verifica ao abrir a página se você já está logado
+    async function checarSessaoInicial() {
+        if (!supabaseClient) return;
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            authOverlay.style.display = 'none';
+            await baixarTudoDoSupabase();
+        } else {
+            authOverlay.style.display = 'flex';
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', checarSessaoInicial);
+})();
