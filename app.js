@@ -1438,6 +1438,8 @@ let vigiaFechamentoPiP = null;
 let tomAtivoGem = 'amigavel'; // amigavel, padrao, sindico, passos, curto
 let ultimaRespostaGeradaGem = '';
 
+const ACOES_RAPIDAS_PADRAO = [];
+
 let listaAcoesRapidas = JSON.parse(localStorage.getItem('sc_acoes_rapidas_v1')) || ACOES_RAPIDAS_PADRAO;
 
 let configGeminiGem = JSON.parse(localStorage.getItem('sc_gemini_gem_config')) || {
