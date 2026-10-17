@@ -1,7 +1,7 @@
 // ==============================================================
 // 1. CONEXÃO HÍBRIDA SUPABASE (LOCAL-FIRST + CLOUD BACKUP)
 // ==============================================================
-const SUPABASE_URL = 'sb_publishable_gdSCyqFDuDCzKw7vBNB8_Q_iIIlVmmz';
+const SUPABASE_URL = 'https://opmtzbrwnoejnqzwaxof.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wbXR6YnJ3bm9lam5xendheG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMDg3OTgsImV4cCI6MjEwNzU4NDc5OH0.Ui_VX8yMCtH64xU5hfIJoznWSPRqsu5dp8ATrSK2CiU';
 let supabaseClient = null;
 
