@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Cosmos | Inteligente</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+    
+    <!-- Motores Oficiais de Leitura de PDF (Mozilla PDF.js) e Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <!-- ==========================================================
+         UNIVERSO PROFUNDO VIVO (ESTRELAS, 2 COMETAS E CONSTELAÇÕES)
+         ========================================================== -->
+    <canvas id="cosmos-canvas"></canvas>
+
+    <!-- NEBULOSAS INTENSAS -->
+    <div class="cosmos-nebula nebula-violet"></div>
+    <div class="cosmos-nebula nebula-cyan"></div>
+    <div class="cosmos-nebula nebula-gold"></div>
+
+    <!-- ASTROS DO UNIVERSO: GALÁXIA ESPIRAL, SATURNO E LUA BRILHANTE -->
+    <div class="cosmic-galaxy" title="Galáxia de Andrômeda"></div>
+    <div class="ringed-planet" title="Harmonia Universal">
+        <div class="planet-ring"></div>
+    </div>
+    <div class="ethereal-moon" title="Luz e Serenidade"></div>
+
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar glass-panel">
+            <div class="brand-header">
+                <div class="logo-box">
+                    <span class="material-icons-round">auto_awesome</span>
+                </div>
+                <div>
+                    <h3>SC Smart Cockpit</h3>
+                    <p class="text-neon-blue">INFINITE COSMOS</p>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <p class="menu-label">DIMENSÕES</p>
+                <a href="#" id="nav-atendimento" class="menu-item active" onclick="trocarModulo('atendimento')">
+                    <span class="material-icons-round" style="color: var(--neon-blue);">forum</span>
+                    Respostas Rápidas
+                    <span id="contador-total-sidebar" class="badge-tag">0</span>
+                </a>
+                <a href="#" id="nav-prompts" class="menu-item" onclick="trocarModulo('prompts')">
+                    <span class="material-icons-round" style="color: var(--neon-purple);">psychology</span>
+                    Prompts de IA
+                </a>
+                <a href="#" id="nav-extrator" class="menu-item" onclick="trocarModulo('extrator')">
+                    <span class="material-icons-round" style="color: var(--neon-green);">table_view</span>
+                    Extrator PDF (Fase 2)
+                </a>
+            </div>
+
+            <a href="#" id="nav-chat" class="menu-item" onclick="trocarModulo('chat')">
+                    <span class="material-icons-round" style="color: #f472b6;">auto_stories</span>
+                    Diário & Chat Pessoal
+                    <span id="contador-chat-sidebar" class="badge-tag" style="background: rgba(244, 114, 182, 0.2); color: #f9a8d4;">0</span>
+                </a>
+                 
+            <div class="menu-section" style="margin-top: 20px;">
+                <p class="menu-label">EXPORTAR E IMPORTAR</p>
+
+                <a href="#" class="menu-item" onclick="exportarBackupCSV()">
+                    <span class="material-icons-round" style="color: var(--neon-green);">download</span>
+                    Baixar Backup (.CSV)
+                </a>
+                <a href="#" class="menu-item" onclick="document.getElementById('input-restore-csv').click()">
+                    <span class="material-icons-round" style="color: var(--neon-yellow);">upload_file</span>
+                    Restaurar Backup (.CSV)
+                </a>
+                <input type="file" id="input-restore-csv" accept=".csv,.json" style="display: none;" onchange="importarBackupArquivo(event)">
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="btn-trigger-pip" class="btn-pip-cosmic" onclick="ativarModoFlutuante()" data-tip="Destacar o Cockpit em uma janela sempre visível sobre o atendimento">
+                    <div class="pip-orb-icon">
+                        <span class="material-icons-round">open_in_new</span>
+                    </div>
+                    <div class="pip-btn-texts">
+                        <strong>MODO FLUTUANTE</strong>
+                        <span>Destacar HUD sobre a tela</span>
+                    </div>
+                    <span class="pip-status-dot"></span>
+                </button>
+                <div class="dev-signature">
+                    <span>ENGINEERED IN LIGHT BY</span>
+                    <strong>RICARDO LIMA</strong>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ÁREA PRINCIPAL (QUE VAI PARA A JANELA FLUTUANTE) -->
+        <main class="main-content" id="area-flutuante-container">
+
+            <!-- ==========================================================
+                 HORIZONTE ESPÍRITA BRILHANTE (ESQUERDO = TROCA | DIREITO = EDITA!)
+                 ========================================================== -->
+            <div class="cosmic-horizon" onclick="trocarPensamentoEspirita(event)" oncontextmenu="ativarEdicaoFraseTopo(event)" title="Clique Esquerdo: Trocar reflexão | Clique Direito: Editar texto livremente">
+                <div class="cosmic-glow-center"></div>
+
+                <div class="cosmic-content">
+                    <div class="constellation-pill">
+                        <span class="star-sparkle">✦</span>
+                        <span id="mantra-palavras" spellcheck="false">AMOR • CARIDADE • EVOLUÇÃO • LUZ</span>
+                        <span class="star-sparkle">✦</span>
+                    </div>
+                    <div class="quote-fixed-slot">
+                        <p id="frase-espirita" class="spirit-quote" spellcheck="false">
+                            “Fora da caridade não há salvação. O amor é a centelha divina que ilumina todo o Universo.”
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MÓDULO 1: ATENDIMENTO FLASH -->
+            <section id="modulo-atendimento" class="module-view">
+
+                <!-- COMANDO FLUTUANTE TRANSPARENTE -->
+                <div class="top-command-bar">
+                    
+                    <!-- LINHA 1: PESQUISA + COMPACTAR + NOVA -->
+                    <div class="search-row">
+                        <div class="search-box">
+                            <span class="material-icons-round text-neon-blue" style="font-size: 18px;">search</span>
+                            <input type="text" id="busca-rapida" placeholder="Buscar resposta ou digitar /atalho + Enter..." oninput="aoDigitarBusca()" onkeydown="navegarBuscaTeclado(event)">
+                            <button id="btn-limpar-busca" class="btn-clear-search" style="display: none;" onclick="limparBuscaRapida()" title="Limpar (ESC)">
+                                <span class="material-icons-round" style="font-size: 14px;">close</span>
+                            </button>
+                        </div>
+
+                        <button class="btn-mini-tool" onclick="alternarModoVisualizacao()" title="Alternar entre Lista Compacta e Cards">
+                            <span class="material-icons-round" style="font-size: 15px; color: var(--neon-blue);">view_stream</span>
+                            <span id="txt-view-mode">Compactar</span>
+                        </button>
+
+                        <button class="btn-new-script" onclick="abrirModalScript()">
+                            <span class="material-icons-round" style="font-size: 16px;">add</span> Nova
+                        </button>
+                    </div>
+
+                    <!-- LINHA 2: PERSONALIZAÇÃO OPCIONAL (BOA NOITE SEM VÍRGULA APARENTE) -->
+                    <div class="quick-personalize-row">
+                        <span id="badge-saudacao-atual" class="saudacao-live-tag">🌙 boa noite</span>
+                        
+                        <div class="mini-var-input">
+                            <span class="material-icons-round" style="font-size: 13px; color: var(--text-muted);">person</span>
+                            <input type="text" id="var-nome" placeholder="Nome do Cliente (Opcional)" oninput="renderizarCards()">
+                            <button onclick="colarRapido('var-nome')" title="Colar Nome"><span class="material-icons-round">content_paste</span></button>
+                        </div>
+
+                        <div class="mini-var-input">
+                            <span class="material-icons-round" style="font-size: 13px; color: var(--text-muted);">apartment</span>
+                            <input type="text" id="var-condominio" placeholder="Condomínio (Opcional)" oninput="renderizarCards()">
+                            <button onclick="colarRapido('var-condominio')" title="Colar Condomínio"><span class="material-icons-round">content_paste</span></button>
+                        </div>
+
+                        <button class="btn-reset-mini" onclick="limparVariaveis()" title="Limpar variáveis (Alt + L)">
+                            <span class="material-icons-round" style="font-size: 14px;">restart_alt</span>
+                        </button>
+                    </div>
+
+                    <!-- LINHA 3: CATEGORIAS -->
+                    <div class="category-pills" id="container-categorias"></div>
+                </div>
+
+                <!-- GRID DE RESPOSTAS -->
+                <div id="grid-respostas" class="cards-grid"></div>
+
+            </section>
+
+           <!-- MÓDULO 2: ESTÚDIO DE ENGENHARIA DE PROMPTS IA -->
+            <section id="modulo-prompts" class="module-view" style="display: none;">
+                
+                <!-- HEADER DO ESTÚDIO IA -->
+                <div class="ai-studio-banner glass-card">
+                    <div class="ai-banner-left">
+                        <div class="ai-orb">
+                            <span class="material-icons-round">psychology</span>
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <h3 style="font-size: 15px; font-weight: 800; color: white;">AI Prompt Engineering Studio</h3>
+                                <span class="ai-pill-badge">DYNAMIC TOKENS</span>
+                            </div>
+                            <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                                Parametrize variáveis em tempo real, acople dados brutos e dispare para a IA com precisão cirúrgica.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="ai-banner-actions">
+                        <button class="btn-ai-launch" onclick="window.open('https://gemini.google.com/app', '_blank')" data-tip="Abrir Google Gemini em nova aba">
+                            <span class="material-icons-round" style="font-size: 14px; color: #38bdf8;">auto_awesome</span> Abrir Gemini
+                            </button>
+                        <button class="btn-new-prompt-ai" onclick="abrirModalPromptIA()" data-tip="Criar novo Prompt Estruturado de IA">
+                            <span class="material-icons-round" style="font-size: 16px;">auto_fix_high</span>
+                            <span>Arquitetar Prompt IA</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FILTROS DE ESPECIALIDADE DA IA -->
+                <div class="ai-filter-bar">
+                    <button class="ai-cat-btn active" onclick="filtrarPromptsIA('todos', this)">🌌 Todos os Motores</button>
+                    <button class="ai-cat-btn" onclick="filtrarPromptsIA('Extração & Dados', this)">📊 Extração Imobiliária (PDF/Sheets)</button>
+                    <button class="ai-cat-btn" onclick="filtrarPromptsIA('Customer Success', this)">🛡️ Customer Success & Escudo</button>
+                    <button class="ai-cat-btn" onclick="filtrarPromptsIA('Auditoria & Erros', this)">🔍 Auditoria Financeira / Bugs</button>
+                </div>
+
+                <!-- GRID DE WORKSTATIONS DE PROMPTS -->
+                <div id="grid-prompts" class="ai-workstation-grid"></div>
+            </section>
+
+    <!-- MÓDULO 3: MOTOR ETL EXTRATOR DE PDF ➔ SEU CONDOMÍNIO (100% FUNCIONAL) -->
+            <section id="modulo-extrator" class="module-view" style="display: none;">
+                
+                <!-- PAINEL DE CONTROLE E PARAMETRIZAÇÃO DE UNIDADES -->
+                <div class="etl-control-panel glass-card">
+                    <div class="etl-header-row">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="etl-icon-orb">
+                                <span class="material-icons-round">transform</span>
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <h3 style="font-size: 15px; font-weight: 800; color: white;">Extrator & Parametrizador Imobiliário</h3>
+                                    <span class="ai-pill-badge" style="color: var(--neon-green); border-color: var(--neon-green);">11 COLUNAS SEU CONDOMÍNIO</span>
+                                </div>
+                                <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                    Extraia PDFs gigantes, aplique a máscara exata de bloco/unidade e copie direto para o sistema ou Excel.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- CONTADORES EM TEMPO REAL -->
+                        <div class="etl-stats-badges">
+                            <div class="stat-mini-box">
+                                <span id="etl-stat-total">0</span>
+                                <small>REGISTROS</small>
+                            </div>
+                            <div class="stat-mini-box prop">
+                                <span id="etl-stat-prop">0</span>
+                                <small>PROPRIETÁRIOS</small>
+                            </div>
+                            <div class="stat-mini-box mor">
+                                <span id="etl-stat-mor">0</span>
+                                <small>MORADORES</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BARRA DE REGRAS DE PARAMETRIZAÇÃO (MUDA A TABELA EM TEMPO REAL!) -->
+                    <div class="etl-rules-grid">
+                        <div class="input-box">
+                            <label>1. ESTRUTURA DA UNIDADE NO SISTEMA</label>
+                            <select id="etl-regra-unidade" onchange="reprocessarParametrizacaoAoVivo()">
+                                <option value="bloco_traco_unid">BLOCO - UNID (Ex: A - 02 / A - 101)</option>
+                                <option value="bloco_num_2dig">01 - 101 (Bloco com 2 dígitos + Apto)</option>
+                                <option value="apenas_unid_sem_zero">Apenas Unidade s/ Zero Inicial (0303 ➔ 303)</option>
+                                <option value="apenas_unid_intacta">Apenas Unidade Original (001 / 0303)</option>
+                                <option value="mascara_livre">✏️ Máscara Customizada...</option>
+                            </select>
+                        </div>
+
+                        <div class="input-box" id="box-mascara-livre" style="display: none;">
+                            <label>MÁSCARA ({BLOCO} e {UNID})</label>
+                            <input type="text" id="etl-mascara-custom" value="Bloco {BLOCO} - Apto {UNID}" oninput="reprocessarParametrizacaoAoVivo()">
+                        </div>
+
+                        <div class="input-box">
+                            <label>2. ZEROS NA UNIDADE</label>
+                            <select id="etl-regra-zeros" onchange="reprocessarParametrizacaoAoVivo()">
+                                <option value="padrao_araguaia">Térreo 2 díg (01..04) | Andar 3 díg (101)</option>
+                                <option value="sem_zero">Remover todos zeros à esquerda (0303 ➔ 303)</option>
+                                <option value="tres_digitos">Forçar 3 dígitos (01 ➔ 001)</option>
+                                <option value="intacto">Manter igual ao PDF</option>
+                            </select>
+                        </div>
+
+                        <div class="input-box">
+                            <label>3. PROTEÇÃO DE ZERO (EXCEL)</label>
+                            <select id="etl-regra-apostrofo" onchange="reprocessarParametrizacaoAoVivo()">
+                                <option value="sem_apostrofo">Limpo (Padrão Araguaia.xlsx p/ Ctrl+V)</option>
+                                <option value="com_apostrofo">Adicionar Apóstrofo ('075...) em CPF/Tel</option>
+                            </select>
+                        </div>
+
+                        <div class="input-box">
+                            <label>4. FILTRAR OU BUSCAR NA TABELA</label>
+                            <input type="text" id="etl-busca-tabela" placeholder="Filtrar nome, bloco, CPF..." oninput="renderizarTabelaExtraida()">
+                        </div>
+                    </div>
+
+                    <!-- ZONA DE UPLOAD DO PDF GIGANTE + BOTÕES DE EXPORTAÇÃO -->
+                    <div class="etl-actions-bar">
+                        <div class="pdf-drop-zone" onclick="document.getElementById('input-pdf-extrator').click()" id="drop-zone-pdf">
+                            <span class="material-icons-round" style="font-size: 20px; color: var(--neon-blue);">upload_file</span>
+                            <div>
+                                <strong id="label-nome-pdf">Clique para carregar o PDF de Unidades (Ex: araguaia.pdf)</strong>
+                                <span id="status-leitura-pdf">Extração instantânea de todas as páginas</span>
+                            </div>
+                            <input type="file" id="input-pdf-extrator" accept=".pdf" style="display: none;" onchange="processarArquivoPDFCondominio(event)">
+                        </div>
+
+                        <div class="etl-export-btns">
+                            <button class="btn-etl-copy" onclick="copiarTabelaParaSeuCondominio(false)" data-tip="Copia as 11 colunas sem cabeçalho pronto para colar direto no Seu Condomínio ou Excel!">
+                                <span class="material-icons-round" style="font-size: 16px;">content_copy</span>
+                                COPIAR DADOS (CTRL+V DIRETO)
+                            </button>
+                            <button class="btn-etl-excel" onclick="baixarPlanilhaExcelPronta()" data-tip="Baixar planilha .XLSX idêntica ao Araguaia.xlsx">
+                                <span class="material-icons-round" style="font-size: 16px;">grid_on</span>
+                                Baixar .XLSX
+                            </button>
+                            <button class="btn-reset-mini" onclick="limparExtrator()" data-tip="Limpar tabela atual">
+                                <span class="material-icons-round" style="font-size: 16px;">delete_sweep</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABELA INTERATIVA DAS 11 COLUNAS (EDITÁVEL COM 1 CLIQUE!) -->
+                <div class="etl-table-container glass-card">
+                    <table class="etl-table">
+                        <thead>
+                            <tr>
+                                <th>Unidade</th>
+                                <th>Limpar</th>
+                                <th>Unidade Tipo</th>
+                                <th>Principal</th>
+                                <th>Mora Unid.</th>
+                                <th>Resp.</th>
+                                <th>Locatário</th>
+                                <th>Nome (Clique p/ editar)</th>
+                                <th>CPF / CNPJ</th>
+                                <th>E-mail</th>
+                                <th>Telefones</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-extrator-unidades">
+                            <tr>
+                                <td colspan="12" style="text-align: center; padding: 45px 20px; color: var(--text-muted);">
+                                    <span class="material-icons-round" style="font-size: 38px; opacity: 0.3; display: block; margin-bottom: 8px;">picture_as_pdf</span>
+                                    Selecione um arquivo PDF acima para extrair e parametrizar todas as unidades automaticamente.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </section>
+
+            <!-- MÓDULO 4: DIÁRIO CÓSMICO & CHAT MULTIMÍDIA PESSOAL PRO (ATÉ 10 IMAGENS + CORES + TEMAS) -->
+            <section id="modulo-chat" class="module-view" style="display: none;">
+                <div id="cosmic-chat-shell" class="cosmic-chat-shell glass-card bg-theme-cosmos">
+                    
+                    <!-- TOPO DO CHAT: STATUS DA NUVEM, TEMA DE FUNDO, BUSCA E FILTROS -->
+                    <div class="chat-vault-header">
+                        <div class="chat-header-profile">
+                            <div class="chat-avatar-orb">
+                                <span class="material-icons-round">self_improvement</span>
+                                <span class="online-dot"></span>
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h3 style="font-size: 15px; font-weight: 800; color: white;">Cápsula Pessoal • Ricardo</h3>
+                                    <span id="chat-cloud-badge" class="chat-sync-pill" onclick="sincronizarChatComSupabase(true)" data-tip="Clique para sincronizar com o Supabase">
+                                        ☁️ Nuvem Ativa
+                                    </span>
+                                </div>
+                                <p style="font-size: 11px; color: var(--text-muted);">
+                                    Cole até 10 prints (Ctrl+V), crie checklists, pinte notas e personalize seu universo.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="chat-header-tools">
+                            <!-- SELETOR DE FUNDO DO CHAT -->
+                            <div class="chat-theme-selector">
+                                <button type="button" class="btn-hud-tool" onclick="toggleMenuFundoChat(event)" data-tip="Personalizar o fundo do seu Chat">
+                                    <span class="material-icons-round" style="font-size: 15px; color: #f472b6;">wallpaper</span>
+                                    <span>Fundo</span>
+                                </button>
+                                <div id="chat-bg-dropdown" class="chat-floating-popover" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="popover-title">🌌 UNIVERSOS & AMBIENTES DE FUNDO</div>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-cosmos')">✨ Nebulosa Cósmica (Padrão)</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-orion')">🔮 Nebulosa de Órion (Magenta & Roxo)</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-biolum')">🌊 Oceano Bioluminescente (Ciano Vivo)</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-supernova')">🔥 Supernova Solar (Rubi & Âmbar)</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-synthwave')">🌆 Horizonte Synthwave 3D</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-matrix')">🌐 Grade Cyber-Matrix</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-aurora')">🟢 Aurora Boreal Esmeralda</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-gold')">👑 Poeira Estelar Dourada</button>
+                                    <button type="button" class="bg-opt-btn" onclick="mudarFundoChat('bg-theme-abyss')">🌑 Cristal Abissal (Foco Total)</button>
+                                    <div class="popover-divider"></div>
+                                    <button type="button" class="bg-opt-btn" style="color: var(--neon-blue);" onclick="document.getElementById('chat-bg-upload').click()">
+                                        🖼️ Subir Wallpaper do Meu PC...
+                                    </button>
+                                    <input type="file" id="chat-bg-upload" accept="image/*" style="display: none;" onchange="subirImagemFundoChat(event)">
+                                </div>
+                            </div>
+
+                            <div class="chat-search-mini">
+                                <span class="material-icons-round" style="font-size: 15px; color: var(--neon-purple);">search</span>
+                                <input type="text" id="chat-input-busca" placeholder="Buscar palavra, #tag ou data..." oninput="renderizarMensagensChat()">
+                            </div>
+
+                            <div class="chat-filter-pills">
+                                <button class="chat-filter-btn active" onclick="filtrarChatPessoal('todos', this)">Tudo</button>
+                                <button class="chat-filter-btn" onclick="filtrarChatPessoal('fixados', this)" data-tip="Ver apenas notas fixadas">📌 Fixados</button>
+                                <button class="chat-filter-btn" onclick="filtrarChatPessoal('midia', this)" data-tip="Ver apenas fotos e vídeos">🖼️ Mídias</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BARRA DE MENSAGEM FIXADA NO TOPO (SEM ASTERISCOS E CLICÁVEL) -->
+                    <div id="chat-pinned-banner" class="chat-pinned-banner" style="display: none;"></div>
+
+                    <!-- STREAM DE MENSAGENS -->
+                    <div id="chat-messages-stream" class="chat-messages-stream"></div>
+
+                    <!-- CARROSSEL DE ATÉ 10 IMAGENS/MÍDIAS NO STAGING ANTES DE ENVIAR -->
+                    <div id="chat-staging-area" class="chat-staging-multi" style="display: none;">
+                        <div class="staging-multi-header">
+                            <span id="staging-counter-badge" class="staging-badge-count">📸 1 / 10 mídias prontas</span>
+                            <span style="font-size: 10.5px; color: var(--text-muted);">Continue dando <strong>Ctrl + V</strong> para adicionar mais imagens (até 10)</span>
+                            <button type="button" class="btn-reset-mini" onclick="cancelarAnexoChat()" data-tip="Limpar todos os anexos">
+                                <span class="material-icons-round" style="font-size: 14px;">delete_sweep</span> Limpar Tudo
+                            </button>
+                        </div>
+                        <div id="staging-thumbnails-track" class="staging-thumbnails-track"></div>
+                    </div>
+
+                    <!-- COMPOSITOR VISUAL RICH-TEXT (SEM ASTERISCOS ** E SEM CÓDIGOS [COR]!) -->
+                    <div class="chat-composer-bar" id="chat-composer-wrapper">
+                        
+                        <!-- MINI-BARRA FLUTUANTE ESTILO NOTION (APARECE AO SELECIONAR UMA PALAVRA!) -->
+                        <div id="rich-floating-toolbar" class="rich-floating-toolbar" style="display: none;" onmousedown="event.preventDefault()">
+                            <button type="button" onclick="executarComandoRico('bold')" title="Negrito"><strong>B</strong></button>
+                            <button type="button" onclick="executarComandoRico('italic')" title="Itálico"><em>I</em></button>
+                            <button type="button" onclick="executarComandoRico('underline')" title="Sublinhado"><u>U</u></button>
+                            <span class="mini-sep"></span>
+                            <button type="button" class="dot-mini" style="background:#6ee7b7;" onclick="colorirSelecaoRica('#6ee7b7')" title="Verde Neon"></button>
+                            <button type="button" class="dot-mini" style="background:#fef08a;" onclick="colorirSelecaoRica('#fef08a')" title="Amarelo Ouro"></button>
+                            <button type="button" class="dot-mini" style="background:#38bdf8;" onclick="colorirSelecaoRica('#38bdf8')" title="Azul Ciano"></button>
+                            <button type="button" class="dot-mini" style="background:#f472b6;" onclick="colorirSelecaoRica('#f472b6')" title="Rosa Choque"></button>
+                            <button type="button" class="dot-mini" style="background:#fca5a5;" onclick="colorirSelecaoRica('#fca5a5')" title="Vermelho Alerta"></button>
+                            <button type="button" class="dot-mini" style="background:#ffffff;" onclick="colorirSelecaoRica('#ffffff')" title="Branco Padrão"></button>
+                        </div>
+
+                        <div class="chat-format-toolbar" onmousedown="event.preventDefault()">
+                            <!-- Formatação Visual Real (WYSIWYG - Sem asteriscos!) -->
+                            <button type="button" class="fmt-btn" onclick="executarComandoRico('bold')" data-tip="Negrito Visual (Ctrl+B)"><strong>B</strong></button>
+                            <button type="button" class="fmt-btn" onclick="executarComandoRico('italic')" data-tip="Itálico Visual (Ctrl+I)"><em>I</em></button>
+                            <button type="button" class="fmt-btn" onclick="executarComandoRico('underline')" data-tip="Sublinhado (Ctrl+U)"><u>U</u></button>
+                            <button type="button" class="fmt-btn" onclick="inserirCodigoRico()" data-tip="Bloco de Código / Protocolo">
+                                <span class="material-icons-round" style="font-size: 13px;">code</span>
+                            </button>
+
+                            <div class="toolbar-divider"></div>
+
+                            <!-- Listas Reais Automáticas: Tópicos, 1. 2. 3. e Checklist -->
+                            <button type="button" class="fmt-btn" onclick="executarComandoRico('insertUnorderedList')" data-tip="Lista de Tópicos (•)">
+                                <span class="material-icons-round" style="font-size: 15px;">format_list_bulleted</span>
+                            </button>
+                            <button type="button" class="fmt-btn" onclick="executarComandoRico('insertOrderedList')" data-tip="Lista Numerada Automática (1. 2. 3.)">
+                                <span class="material-icons-round" style="font-size: 15px; color: var(--neon-blue);">format_list_numbered</span>
+                                <span>1. 2. 3.</span>
+                            </button>
+                            <button type="button" class="fmt-btn" onclick="inserirChecklistRico()" data-tip="Inserir Tarefa / Checklist Clicável">
+                                <span class="material-icons-round" style="font-size: 14px; color: var(--neon-green);">check_box</span>
+                                <span>Checklist</span>
+                            </button>
+
+                            <div class="toolbar-divider"></div>
+
+                            <!-- CARROSSEL DE ÍCONES COM 3 PÁGINAS (◀ 1/3 ▶) -->
+                            <div style="position: relative;">
+                                <button type="button" class="fmt-btn" onclick="togglePopoverChat('popover-emojis', event)" data-tip="Navegar pelas 3 páginas de Ícones">
+                                    <span>✨ Ícones</span>
+                                </button>
+                                <div id="popover-emojis" class="chat-floating-popover emoji-grid-popover" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="emoji-Zone-header">
+                                        <button type="button" class="emoji-nav-btn" onclick="mudarPaginaIcones(-1)">◀</button>
+                                        <span id="emoji-page-title" class="popover-title" style="border:none; margin:0; padding:0;">1/3 • SUPORTE</span>
+                                        <button type="button" class="emoji-nav-btn" onclick="mudarPaginaIcones(1)">▶</button>
+                                    </div>
+                                    <div id="emoji-buttons-container" class="emoji-buttons-wrap"></div>
+                                </div>
+                            </div>
+
+                            <!-- SELETOR DE COR APENAS DO TRECHO SELECIONADO (OU DO CURSOR) -->
+                            <div style="position: relative;">
+                                <button type="button" class="fmt-btn" id="btn-cor-texto-atual" onclick="togglePopoverChat('popover-text-color', event)" data-tip="Colorir apenas a palavra selecionada ou o que digitar a seguir">
+                                    <span class="material-icons-round" id="icone-cor-texto-ativa" style="font-size: 14px; color: #6ee7b7;">format_color_text</span>
+                                    <span>Cor Texto</span>
+                                </button>
+                                <div id="popover-text-color" class="chat-floating-popover" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="popover-title">COLORIR SELEÇÃO (SEM CÓDIGOS!)</div>
+                                    <div class="color-dots-row">
+                                        <button type="button" class="color-dot" style="background: #ffffff;" onclick="colorirSelecaoRica('#ffffff')" data-tip="Branco Padrão"></button>
+                                        <button type="button" class="color-dot" style="background: #10b981;" onclick="colorirSelecaoRica('#6ee7b7')" data-tip="Verde Esmeralda Neon"></button>
+                                        <button type="button" class="color-dot" style="background: #fbbf24;" onclick="colorirSelecaoRica('#fef08a')" data-tip="Amarelo Ouro"></button>
+                                        <button type="button" class="color-dot" style="background: #38bdf8;" onclick="colorirSelecaoRica('#38bdf8')" data-tip="Azul Ciano"></button>
+                                        <button type="button" class="color-dot" style="background: #f472b6;" onclick="colorirSelecaoRica('#f472b6')" data-tip="Rosa Cósmico"></button>
+                                        <button type="button" class="color-dot" style="background: #ef4444;" onclick="colorirSelecaoRica('#fca5a5')" data-tip="Vermelho Alerta"></button>
+                                    </div>
+                                    <div class="popover-divider"></div>
+                                    <div class="popover-title" style="margin-top:2px;">MARCA-TEXTO (FUNDO NEON)</div>
+                                    <div class="color-dots-row">
+                                        <button type="button" class="color-dot" style="background: rgba(16,185,129,0.45); border-color:#10b981;" onclick="destacarFundoRico('rgba(16, 185, 129, 0.32)')" data-tip="Grifar em Verde"></button>
+                                        <button type="button" class="color-dot" style="background: rgba(250,204,21,0.45); border-color:#eab308;" onclick="destacarFundoRico('rgba(250, 204, 21, 0.32)')" data-tip="Grifar em Amarelo"></button>
+                                        <button type="button" class="color-dot" style="background: rgba(239,68,68,0.45); border-color:#ef4444;" onclick="destacarFundoRico('rgba(239, 68, 68, 0.35)')" data-tip="Grifar em Vermelho"></button>
+                                        <button type="button" class="color-dot" style="background: transparent;" onclick="destacarFundoRico('transparent')" data-tip="Remover Marca-Texto">✕</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAGS INTELIGENTES DE 1 CLIQUE -->
+                            <div style="position: relative;">
+                                <button type="button" class="fmt-btn" onclick="togglePopoverChat('popover-tags-chat', event)" data-tip="Inserir Etiqueta Rápida (#Senha, #Bug, #Financeiro)">
+                                    <span class="material-icons-round" style="font-size: 14px; color: #f472b6;">sell</span>
+                                    <span>#Tag</span>
+                                </button>
+                                <div id="popover-tags-chat" class="chat-floating-popover" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="popover-title">INSERIR ETIQUETA NA NOTA</div>
+                                    <button type="button" class="bg-opt-btn" onclick="inserirTagRica('#Importante', '#fef08a')">⭐ #Importante</button>
+                                    <button type="button" class="bg-opt-btn" onclick="inserirTagRica('#Senha', '#38bdf8')">🔑 #Senha / Acesso</button>
+                                    <button type="button" class="bg-opt-btn" onclick="inserirTagRica('#Financeiro', '#6ee7b7')">💰 #Financeiro</button>
+                                    <button type="button" class="bg-opt-btn" onclick="inserirTagRica('#Bug', '#fca5a5')">🚨 #Bug / Erro</button>
+                                    <button type="button" class="bg-opt-btn" onclick="inserirTagRica('#Condomínio', '#e9d5ff')">🏢 #Condomínio</button>
+                                </div>
+                            </div>
+
+                            <!-- SELETOR DE COR DO BALÃO -->
+                            <div class="bubble-color-picker" data-tip="Escolha a cor do cartão desta anotação">
+                                <span style="font-size: 10px; color: var(--text-muted); font-weight: 700;">Card:</span>
+                                <button type="button" class="b-color-dot active" data-cor="roxo" style="background: #a855f7;" onclick="selecionarCorBalao('roxo', this)"></button>
+                                <button type="button" class="b-color-dot" data-cor="azul" style="background: #0ea5e9;" onclick="selecionarCorBalao('azul', this)"></button>
+                                <button type="button" class="b-color-dot" data-cor="verde" style="background: #10b981;" onclick="selecionarCorBalao('verde', this)"></button>
+                                <button type="button" class="b-color-dot" data-cor="ouro" style="background: #eab308;" onclick="selecionarCorBalao('ouro', this)"></button>
+                                <button type="button" class="b-color-dot" data-cor="vermelho" style="background: #ef4444;" onclick="selecionarCorBalao('vermelho', this)"></button>
+                            </div>
+
+                            <!-- UPLOAD DE ATÉ 10 MÍDIAS -->
+                            <button type="button" class="fmt-btn" onclick="document.getElementById('chat-file-upload').click()" data-tip="Subir até 10 fotos, vídeos ou arquivos">
+                                <span class="material-icons-round" style="font-size: 15px; color: var(--neon-blue);">collections</span>
+                                <span>+ Mídias</span>
+                            </button>
+                            <input type="file" id="chat-file-upload" accept="image/*,video/*,.pdf,.txt,.csv,.xlsx" multiple style="display: none;" onchange="aoSelecionarArquivoChat(event)">
+
+                            <!-- EXPANDIR CAIXA -->
+                            <button type="button" class="fmt-btn" style="margin-left: auto;" onclick="alternarAlturaEditorChat()" data-tip="Expandir ou recolher caixa de digitação">
+                                <span class="material-icons-round" style="font-size: 14px; color: var(--neon-yellow);">open_in_full</span>
+                                <span id="label-btn-expandir">Expandir</span>
+                            </button>
+                        </div>
+
+                        <!-- NOVO EDITOR VISUAL RICO (CONTENTEDITABLE) QUE FORMATA AO VIVO SEM CÓDIGOS! -->
+                        <div class="chat-input-row">
+                            <div id="chat-composer-input" class="chat-rich-editor" contenteditable="true" spellcheck="true" data-placeholder="Digite sua anotação... Selecione qualquer palavra para colorir ou pôr em negrito na hora! (Enter envia | Shift+Enter quebra linha)"></div>
+                            <button type="button" class="btn-chat-send" onclick="enviarMensagemChatPessoal()" data-tip="Enviar anotação (Enter)">
+                                <span class="material-icons-round">send</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- LIGHTBOX COM NAVEGAÇÃO PARA AMPLIAR AS FOTOS DA GALERIA -->
+            <div id="chat-lightbox" class="modal-overlay" style="display: none;" onclick="this.style.display='none'">
+                <img id="chat-lightbox-img" src="" style="max-width: 92vw; max-height: 90vh; border-radius: 12px; border: 2px solid var(--neon-purple); box-shadow: 0 0 40px rgba(0,0,0,0.9);">
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL DE CADASTRO COMPLETO -->
+    <div id="modal-script" class="modal-overlay" style="display: none;">
+        <div class="glass-card modal-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 15px; display: flex; align-items: center; gap: 6px;">
+                    <span class="material-icons-round text-neon-blue">edit</span> Configurar Resposta Rápida
+                </h3>
+                <button class="btn-reset-mini" onclick="fecharModalScript()"><span class="material-icons-round">close</span></button>
+            </div>
+            <input type="hidden" id="script-id">
+
+            <div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div class="input-box">
+                    <label>TÍTULO</label>
+                    <input type="text" id="script-titulo" placeholder="Ex: Reserva - Separar Financeiro de Isento">
+                </div>
+                <div class="input-box">
+                    <label>ATALHO CURTO</label>
+                    <input type="text" id="script-atalho" placeholder="Ex: /reserva">
+                </div>
+            </div>
+
+            <div class="input-box" style="margin-bottom: 10px; position: relative;" id="wrapper-custom-cat">
+                <label>CATEGORIA (CLIQUE PARA SELECIONAR, CRIAR OU EDITAR)</label>
+                
+                <!-- Valor oculto que guarda a categoria escolhida -->
+                <input type="hidden" id="script-categoria" value="Saudação">
+
+                <!-- Botão principal com o visual do nosso site -->
+                <div class="custom-cat-trigger" onclick="toggleMenuCategoriasModal(event)">
+                    <span id="cat-selecionada-label">👋 Saudação</span>
+                    <span class="material-icons-round" style="font-size: 18px; color: var(--neon-blue);">expand_more</span>
+                </div>
+
+                <!-- Lista Flutuante Lindo Dark/Neon com Adicionar e Editar embutidos -->
+                <div id="custom-cat-dropdown" class="custom-cat-menu" style="display: none;" onclick="event.stopPropagation()">
+                    <!-- Barra de Criar Nova Categoria direto dentro do menu -->
+                    <div class="cat-add-inline">
+                        <input type="text" id="input-nova-cat-inline" placeholder="✨ Nova categoria (ex: 💰 Boletos)..." onkeydown="if(event.key==='Enter'){event.preventDefault(); criarCategoriaInline();}">
+                        <button type="button" onclick="criarCategoriaInline()" title="Adicionar Categoria">
+                            <span class="material-icons-round" style="font-size: 16px;">add</span>
+                        </button>
+                    </div>
+                    <!-- Onde as categorias aparecem com botão de Editar e Excluir -->
+                    <div id="lista-opcoes-cat" class="cat-options-scroll"></div>
+                </div>
+            </div>
+
+            <div class="input-box" style="margin-bottom: 8px;">
+                <label>TEXTO DA RESPOSTA (A vírgula oculta entra sozinha quando há nome!)</label>
+                <div class="tag-inserter-bar">
+                    <button type="button" onclick="inserirTagNoEditor('{saudacao}')">+ {saudacao}</button>
+                    <button type="button" onclick="inserirTagNoEditor('{nome}')">+ {nome}</button>
+                    <button type="button" onclick="inserirTagNoEditor('{condominio}')">+ {condominio}</button>
+                </div>
+                <textarea id="script-texto" rows="8" placeholder="Ex: Olá, {saudacao} {nome}! Tudo bem? Como posso ajudar?"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+                <button class="btn-reset-mini" style="flex:1; padding: 10px; border-radius: 8px;" onclick="fecharModalScript()">Cancelar</button>
+                <button class="btn-pip" style="flex:2;" onclick="salvarScript()">
+                    <span class="material-icons-round">check_circle</span> SALVAR RESPOSTA
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- MODAL EXCLUSIVO: ARQUITETO DE PROMPTS DE IA -->
+    <div id="modal-prompt-ia" class="modal-overlay" style="display: none;">
+        <div class="glass-card modal-box ai-modal-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(192, 132, 252, 0.2); padding-bottom: 10px;">
+                <h3 style="font-size: 15px; display: flex; align-items: center; gap: 8px; color: #f5d0fe;">
+                    <span class="material-icons-round" style="color: var(--neon-purple);">neurology</span>
+                    Arquiteto de Prompt de IA
+                </h3>
+                <button class="btn-reset-mini" onclick="fecharModalPromptIA()"><span class="material-icons-round">close</span></button>
+            </div>
+
+            <input type="hidden" id="ai-prompt-id">
+
+            <div style="display: grid; grid-template-columns: 1.8fr 1fr 0.8fr; gap: 10px; margin-bottom: 10px;">
+                <div class="input-box">
+                    <label>NOME DA FERRAMENTA / PROMPT</label>
+                    <input type="text" id="ai-prompt-titulo" placeholder="Ex: Extrator Imobiliário 11 Colunas">
+                </div>
+                <div class="input-box">
+                    <label>ESPECIALIDADE</label>
+                    <select id="ai-prompt-especialidade">
+                        <option value="Extração & Dados">📊 Extração & Dados</option>
+                        <option value="Customer Success">🛡️ Customer Success</option>
+                        <option value="Auditoria & Erros">🔍 Auditoria & Erros</option>
+                    </select>
+                </div>
+                <div class="input-box">
+                    <label>COMANDO</label>
+                    <input type="text" id="ai-prompt-atalho" placeholder="Ex: /pdf">
+                </div>
+            </div>
+
+            <!-- CONSTRUTOR DE BLOCOS INTELIGENTES -->
+            <div class="input-box" style="margin-bottom: 8px;">
+                <label>INSERIR BLOCOS DE ENGENHARIA DE PROMPT OU VARIÁVEIS VIVAS</label>
+                <div class="ai-builder-chips">
+                    <button type="button" onclick="inserirBlocoPrompt('Atue como um especialista sênior em ')">🎭 + Persona (Atue como...)</button>
+                    <button type="button" onclick="inserirBlocoPrompt('\n\n### REGRAS ESTRITAS E INEGOCIÁVEIS:\n1. ')">⚖️ + Bloco de Regras</button>
+                    <button type="button" onclick="inserirBlocoPrompt('\n\n### FORMATO EXATO DE SAÍDA:\nGere uma tabela contendo: ')">📋 + Formato de Saída</button>
+                    <button type="button" onclick="inserirBlocoPrompt('{{ESTRUTURA_UNIDADE}}')" data-tip="Cria seletor dinâmico de formato de unidade no card!">⚙️ + {{ESTRUTURA_UNIDADE}}</button>
+                    <button type="button" onclick="inserirBlocoPrompt('{{PAGINACAO}}')" data-tip="Cria seletor dinâmico de quantidade de folhas no card!">📄 + {{PAGINACAO}}</button>
+                    <button type="button" onclick="inserirBlocoPrompt('{{DADOS_ANEXADOS}}')" data-tip="Onde os dados colados na gaveta serão injetados!">📥 + {{DADOS_ANEXADOS}}</button>
+                </div>
+                <textarea id="ai-prompt-texto" rows="10" style="font-family: 'Courier New', monospace; font-size: 11.5px; line-height: 1.5; border-color: rgba(192, 132, 252, 0.35);" placeholder="Estruture aqui as instruções detalhadas para a IA..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+                <button class="btn-reset-mini" style="flex: 1; padding: 10px; border-radius: 8px;" onclick="fecharModalPromptIA()">Cancelar</button>
+                <button class="btn-pip" style="flex: 2; background: linear-gradient(135deg, #9333ea, #3b82f6);" onclick="salvarPromptIA()">
+                    <span class="material-icons-round">auto_awesome</span> SALVAR MOTOR DE PROMPT
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="toast-container"></div>
+    <script src="app.js"></script>
+</body>
+</html>
