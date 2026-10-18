@@ -2050,23 +2050,46 @@ function transformarRespostaGemEmCard() {
     mostrarToast("✨ Resposta carregada! Dê um título e salve seu novo Card.");
 }
 
-function salvarRespostaGemNoDiario() {
-    if (!ultimaRespostaGeradaGem) return;
-    const novaMsg = {
-        id: Date.now(),
-        texto: `🤖 <strong>Resposta Gerada pela IA Gem:</strong><br>${ultimaRespostaGeradaGem.replace(/\n/g, '<br>')}`,
-        midia_tipo: "",
-        midia_url: "",
-        midia_nome: "",
-        cor_balao: "verde",
-        fixado: false,
-        criado_em: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    };
-    listaChatPessoal.push(novaMsg);
-    salvarChatLocal();
-    renderizarMensagensChat(true);
-    mostrarToast("📌 Resposta salva no seu Diário Pessoal!");
-}
+(function inicializarTooltipEstrelado() {
+    let tipBox = document.getElementById('starry-tooltip');
+    if (!tipBox) {
+        tipBox = document.createElement('div');
+        tipBox.id = 'starry-tooltip';
+        document.body.appendChild(tipBox);
+    }
+
+    document.addEventListener('mouseover', (e) => {
+        const el = e.target.closest('[title], [data-tip]');
+        if (!el) return;
+
+        if (el.hasAttribute('title')) {
+            const txt = el.getAttribute('title');
+            if (txt) el.setAttribute('data-tip', txt);
+            el.removeAttribute('title');
+        }
+
+        const msg = el.getAttribute('data-tip');
+        if (!msg) return;
+
+        tipBox.innerHTML = `<span class="tip-star">✦</span> <span>${msg}</span>`;
+        tipBox.classList.add('visivel');
+
+        const rect = el.getBoundingClientRect();
+        let x = rect.left + (rect.width / 2) - (tipBox.offsetWidth / 2);
+        let y = rect.top - 34;
+
+        x = Math.max(10, Math.min(window.innerWidth - tipBox.offsetWidth - 10, x));
+        if (y < 10) y = rect.bottom + 8;
+
+        tipBox.style.left = `${Math.round(x)}px`;
+        tipBox.style.top = `${Math.round(y)}px`;
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const el = e.target.closest('[data-tip]');
+        if (el) tipBox.classList.remove('visivel');
+    });
+})();
 
 async function higienizarDadoCopiado() {
     const txt = await lerTextoUniversalClipboard();
