@@ -114,26 +114,17 @@ function ativarEdicaoFraseTopo(e) {
 }
 
 // ==============================================================
-// 3. MOTOR ULTRA-LEVE (ESTRELAS PRÉ-PINTADAS 1 VEZ + SÓ AS 2 ESTRELAS CADENTES ANIMADAS!)
-// ==============================================================
-// ==============================================================
-// 3. MOTOR ULTRA-LEVE: GALÁXIA ESPIRAL REAL DE ESTRELAS + 2 COMETAS (0% CPU)
+// 3. MOTOR ZERO-CPU: ESTRELAS + GALÁXIA ESPIRAL + COMETAS (0% CPU EM REPOUSO)
 // ==============================================================
 function iniciarCosmosInfinito(targetDocument = document) {
     const canvas = targetDocument.getElementById('cosmos-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const staticStarsCanvas = document.createElement('canvas');
-    const staticCtx = staticStarsCanvas.getContext('2d');
-
-    function gerarCeuEGalaxiaEstatica() {
+    function pintarUniversoEstatico() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        staticStarsCanvas.width = canvas.width;
-        staticStarsCanvas.height = canvas.height;
-
-        staticCtx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // 1. DESENHA 150 ESTRELAS ESPALHADAS NO FUNDO
         for (let i = 0; i < 150; i++) {
@@ -143,38 +134,36 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const alpha = Math.random() * 0.75 + 0.2;
             const cor = Math.random() > 0.7 ? '254, 240, 138' : (Math.random() > 0.4 ? '216, 180, 254' : '186, 230, 253');
 
-            staticCtx.beginPath();
-            staticCtx.arc(x, y, r, 0, Math.PI * 2);
-            staticCtx.fillStyle = `rgba(${cor}, ${alpha})`;
-            staticCtx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${cor}, ${alpha})`;
+            ctx.fill();
 
             if (i % 12 === 0) {
-                staticCtx.strokeStyle = `rgba(${cor}, ${alpha * 0.55})`;
-                staticCtx.lineWidth = 0.7;
+                ctx.strokeStyle = `rgba(${cor}, ${alpha * 0.55})`;
+                ctx.lineWidth = 0.7;
                 const tam = r * 3.5;
-                staticCtx.beginPath();
-                staticCtx.moveTo(x - tam, y); staticCtx.lineTo(x + tam, y);
-                staticCtx.moveTo(x, y - tam); staticCtx.lineTo(x, y + tam);
-                staticCtx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x - tam, y); ctx.lineTo(x + tam, y);
+                ctx.moveTo(x, y - tam); ctx.lineTo(x, y + tam);
+                ctx.stroke();
             }
         }
 
-        // 2. DESENHA UMA GALÁXIA ESPIRAL REAL (FEITA DE POEIRA ESTELAR SEM BORDAS!)
+        // 2. DESENHA A GALÁXIA ESPIRAL DE POEIRA ESTELAR
         const gx = canvas.width > 680 ? 330 : 75;
         const gy = 48;
 
-        // Halo suave do núcleo da galáxia
-        const coreGrad = staticCtx.createRadialGradient(gx, gy, 1, gx, gy, 55);
+        const coreGrad = ctx.createRadialGradient(gx, gy, 1, gx, gy, 55);
         coreGrad.addColorStop(0, 'rgba(254, 249, 195, 0.65)');
         coreGrad.addColorStop(0.25, 'rgba(192, 132, 252, 0.28)');
         coreGrad.addColorStop(0.6, 'rgba(56, 189, 248, 0.08)');
         coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        staticCtx.fillStyle = coreGrad;
-        staticCtx.beginPath();
-        staticCtx.arc(gx, gy, 55, 0, Math.PI * 2);
-        staticCtx.fill();
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath();
+        ctx.arc(gx, gy, 55, 0, Math.PI * 2);
+        ctx.fill();
 
-        // 220 micro-estrelas formando os 2 braços espirais inclinados da galáxia
         const bracos = 2;
         for (let j = 0; j < 220; j++) {
             const dist = Math.random() * 58 + 2;
@@ -183,7 +172,6 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const dispersao = (Math.random() - 0.5) * 0.65;
             const ang = anguloBraco + espiral + dispersao;
 
-            // Achata no eixo Y e inclina em -20 graus para parecer uma galáxia vista em perspectiva
             const rawX = Math.cos(ang) * dist;
             const rawY = Math.sin(ang) * dist * 0.42;
             const rot = -0.35;
@@ -194,112 +182,49 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const rStar = dist < 14 ? Math.random() * 1.3 + 0.4 : Math.random() * 0.9 + 0.2;
             const corStar = dist < 15 ? '254, 240, 138' : (j % 3 === 0 ? '125, 211, 252' : '233, 213, 255');
 
-            staticCtx.beginPath();
-            staticCtx.arc(px, py, rStar, 0, Math.PI * 2);
-            staticCtx.fillStyle = `rgba(${corStar}, ${alphaStar})`;
-            staticCtx.fill();
+            ctx.beginPath();
+            ctx.arc(px, py, rStar, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${corStar}, ${alphaStar})`;
+            ctx.fill();
         }
-    }
 
-    gerarCeuEGalaxiaEstatica();
-    window.addEventListener('resize', gerarCeuEGalaxiaEstatica);
-
-    // COMETA 1: Guardião do Topo (Ilumina a frase espírita)
-    function criarCometaTopo(direcao) {
-        const indoEsq = direcao === 1;
-        return {
-            tipo: 'topo',
-            direcao: direcao,
-            x: indoEsq ? canvas.width + 40 : -40,
-            y: Math.random() * 45 + 18,
-            vx: indoEsq ? -3.4 : 3.4,
-            vy: 0.12,
-            angulo: 0,
-            corCabeca: '254, 240, 138',
-            corCauda: '192, 132, 252'
-        };
-    }
-
-    // COMETA 2: Viajante da Tela Toda
-    function criarCometaTelaToda(direcao) {
-        const indoEsq = direcao === 1;
-        return {
-            tipo: 'telaToda',
-            direcao: direcao,
-            x: indoEsq ? canvas.width + 60 : -60,
-            y: Math.random() * (canvas.height * 0.55) + 100,
-            vx: indoEsq ? -4.0 : 4.0,
-            vy: 0.85,
-            angulo: 0,
-            corCabeca: '125, 211, 252',
-            corCauda: '56, 189, 248'
-        };
-    }
-
-    let cometas = [criarCometaTopo(1), criarCometaTelaToda(-1)];
-    let ultimoFrame = 0;
-
-    function animar(timestamp) {
-        requestAnimationFrame(animar);
-        if (timestamp - ultimoFrame < 32) return; // 30 FPS cravados (~1% CPU)
-        ultimoFrame = timestamp;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(staticStarsCanvas, 0, 0);
-
-        cometas.forEach((c, idx) => {
-            c.x += c.vx;
-            c.y += c.vy;
-            c.angulo += 0.12; // Gira suavemente a estrelinha da ponta do cometa!
-
-            if (c.tipo === 'topo') {
-                if ((c.vx < 0 && c.x < -110) || (c.vx > 0 && c.x > canvas.width + 110)) {
-                    cometas[idx] = criarCometaTopo(c.direcao * -1);
-                }
-            } else {
-                if ((c.vx < 0 && c.x < -120) || (c.vx > 0 && c.x > canvas.width + 120) || c.y > canvas.height + 100) {
-                    cometas[idx] = criarCometaTelaToda(c.direcao * -1);
-                }
-            }
-
-            // Cauda alongada e suave
-            const tailX = c.x - c.vx * 22;
-            const tailY = c.y - c.vy * 22;
-
-            const grad = ctx.createLinearGradient(c.x, c.y, tailX, tailY);
+        // 3. DESENHA 2 ESTRELAS CADENTES ESTÁTICAS (ZERO LOOP DE CPU)
+        const desenharCometaEstatico = (x, y, tailX, tailY, corCabeca, corCauda) => {
+            const grad = ctx.createLinearGradient(x, y, tailX, tailY);
             grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.15, `rgba(${c.corCabeca}, 0.9)`);
-            grad.addColorStop(0.5, `rgba(${c.corCauda}, 0.4)`);
+            grad.addColorStop(0.15, `rgba(${corCabeca}, 0.9)`);
+            grad.addColorStop(0.5, `rgba(${corCauda}, 0.35)`);
             grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             ctx.beginPath();
-            ctx.moveTo(c.x, c.y);
+            ctx.moveTo(x, y);
             ctx.lineTo(tailX, tailY);
             ctx.strokeStyle = grad;
-            ctx.lineWidth = 2.2;
+            ctx.lineWidth = 2;
             ctx.lineCap = 'round';
             ctx.stroke();
 
-            // Ponta do cometa: Estrela de 4 pontas girando (Sem shadowBlur pesado!)
-            ctx.save();
-            ctx.translate(c.x, c.y);
-            ctx.rotate(c.angulo);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
-            ctx.moveTo(0, -6); ctx.lineTo(0, 6);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(0, 0, 2, 0, Math.PI * 2);
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
             ctx.fillStyle = '#ffffff';
             ctx.fill();
-            ctx.restore();
-        });
+        };
+
+        if (canvas.width > 600) {
+            desenharCometaEstatico(canvas.width * 0.68, 28, canvas.width * 0.68 + 85, 18, '254, 240, 138', '192, 132, 252');
+            desenharCometaEstatico(canvas.width * 0.82, 165, canvas.width * 0.82 - 90, 140, '125, 211, 252', '56, 189, 248');
+        }
     }
-    requestAnimationFrame(animar);
+
+    pintarUniversoEstatico();
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(pintarUniversoEstatico, 200);
+    });
 }
+
 
 const SCRIPTS_INICIAIS = [];
 let listaScripts = JSON.parse(localStorage.getItem('sc_cockpit_scripts_v5') || localStorage.getItem('sc_cockpit_scripts_v4') || localStorage.getItem('sc_cockpit_scripts_v3')) || SCRIPTS_INICIAIS;
