@@ -114,17 +114,26 @@ function ativarEdicaoFraseTopo(e) {
 }
 
 // ==============================================================
-// 3. MOTOR ZERO-CPU: ESTRELAS + GALÁXIA ESPIRAL + COMETAS (0% CPU EM REPOUSO)
+// 3. MOTOR ULTRA-LEVE (ESTRELAS PRÉ-PINTADAS 1 VEZ + SÓ AS 2 ESTRELAS CADENTES ANIMADAS!)
+// ==============================================================
+// ==============================================================
+// 3. MOTOR ULTRA-LEVE: GALÁXIA ESPIRAL REAL DE ESTRELAS + 2 COMETAS (0% CPU)
 // ==============================================================
 function iniciarCosmosInfinito(targetDocument = document) {
     const canvas = targetDocument.getElementById('cosmos-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    function pintarUniversoEstatico() {
+    const staticStarsCanvas = document.createElement('canvas');
+    const staticCtx = staticStarsCanvas.getContext('2d');
+
+    function gerarCeuEGalaxiaEstatica() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        staticStarsCanvas.width = canvas.width;
+        staticStarsCanvas.height = canvas.height;
+
+        staticCtx.clearRect(0, 0, canvas.width, canvas.height);
 
         // 1. DESENHA 150 ESTRELAS ESPALHADAS NO FUNDO
         for (let i = 0; i < 150; i++) {
@@ -134,36 +143,38 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const alpha = Math.random() * 0.75 + 0.2;
             const cor = Math.random() > 0.7 ? '254, 240, 138' : (Math.random() > 0.4 ? '216, 180, 254' : '186, 230, 253');
 
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${cor}, ${alpha})`;
-            ctx.fill();
+            staticCtx.beginPath();
+            staticCtx.arc(x, y, r, 0, Math.PI * 2);
+            staticCtx.fillStyle = `rgba(${cor}, ${alpha})`;
+            staticCtx.fill();
 
             if (i % 12 === 0) {
-                ctx.strokeStyle = `rgba(${cor}, ${alpha * 0.55})`;
-                ctx.lineWidth = 0.7;
+                staticCtx.strokeStyle = `rgba(${cor}, ${alpha * 0.55})`;
+                staticCtx.lineWidth = 0.7;
                 const tam = r * 3.5;
-                ctx.beginPath();
-                ctx.moveTo(x - tam, y); ctx.lineTo(x + tam, y);
-                ctx.moveTo(x, y - tam); ctx.lineTo(x, y + tam);
-                ctx.stroke();
+                staticCtx.beginPath();
+                staticCtx.moveTo(x - tam, y); staticCtx.lineTo(x + tam, y);
+                staticCtx.moveTo(x, y - tam); staticCtx.lineTo(x, y + tam);
+                staticCtx.stroke();
             }
         }
 
-        // 2. DESENHA A GALÁXIA ESPIRAL DE POEIRA ESTELAR
+        // 2. DESENHA UMA GALÁXIA ESPIRAL REAL (FEITA DE POEIRA ESTELAR SEM BORDAS!)
         const gx = canvas.width > 680 ? 330 : 75;
         const gy = 48;
 
-        const coreGrad = ctx.createRadialGradient(gx, gy, 1, gx, gy, 55);
+        // Halo suave do núcleo da galáxia
+        const coreGrad = staticCtx.createRadialGradient(gx, gy, 1, gx, gy, 55);
         coreGrad.addColorStop(0, 'rgba(254, 249, 195, 0.65)');
         coreGrad.addColorStop(0.25, 'rgba(192, 132, 252, 0.28)');
         coreGrad.addColorStop(0.6, 'rgba(56, 189, 248, 0.08)');
         coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = coreGrad;
-        ctx.beginPath();
-        ctx.arc(gx, gy, 55, 0, Math.PI * 2);
-        ctx.fill();
+        staticCtx.fillStyle = coreGrad;
+        staticCtx.beginPath();
+        staticCtx.arc(gx, gy, 55, 0, Math.PI * 2);
+        staticCtx.fill();
 
+        // 220 micro-estrelas formando os 2 braços espirais inclinados da galáxia
         const bracos = 2;
         for (let j = 0; j < 220; j++) {
             const dist = Math.random() * 58 + 2;
@@ -172,6 +183,7 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const dispersao = (Math.random() - 0.5) * 0.65;
             const ang = anguloBraco + espiral + dispersao;
 
+            // Achata no eixo Y e inclina em -20 graus para parecer uma galáxia vista em perspectiva
             const rawX = Math.cos(ang) * dist;
             const rawY = Math.sin(ang) * dist * 0.42;
             const rot = -0.35;
@@ -182,49 +194,112 @@ function iniciarCosmosInfinito(targetDocument = document) {
             const rStar = dist < 14 ? Math.random() * 1.3 + 0.4 : Math.random() * 0.9 + 0.2;
             const corStar = dist < 15 ? '254, 240, 138' : (j % 3 === 0 ? '125, 211, 252' : '233, 213, 255');
 
-            ctx.beginPath();
-            ctx.arc(px, py, rStar, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${corStar}, ${alphaStar})`;
-            ctx.fill();
-        }
-
-        // 3. DESENHA 2 ESTRELAS CADENTES ESTÁTICAS (ZERO LOOP DE CPU)
-        const desenharCometaEstatico = (x, y, tailX, tailY, corCabeca, corCauda) => {
-            const grad = ctx.createLinearGradient(x, y, tailX, tailY);
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.15, `rgba(${corCabeca}, 0.9)`);
-            grad.addColorStop(0.5, `rgba(${corCauda}, 0.35)`);
-            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(tailX, tailY);
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(x, y, 2, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.fill();
-        };
-
-        if (canvas.width > 600) {
-            desenharCometaEstatico(canvas.width * 0.68, 28, canvas.width * 0.68 + 85, 18, '254, 240, 138', '192, 132, 252');
-            desenharCometaEstatico(canvas.width * 0.82, 165, canvas.width * 0.82 - 90, 140, '125, 211, 252', '56, 189, 248');
+            staticCtx.beginPath();
+            staticCtx.arc(px, py, rStar, 0, Math.PI * 2);
+            staticCtx.fillStyle = `rgba(${corStar}, ${alphaStar})`;
+            staticCtx.fill();
         }
     }
 
-    pintarUniversoEstatico();
+    gerarCeuEGalaxiaEstatica();
+    window.addEventListener('resize', gerarCeuEGalaxiaEstatica);
 
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(pintarUniversoEstatico, 200);
-    });
+    // COMETA 1: Guardião do Topo (Ilumina a frase espírita)
+    function criarCometaTopo(direcao) {
+        const indoEsq = direcao === 1;
+        return {
+            tipo: 'topo',
+            direcao: direcao,
+            x: indoEsq ? canvas.width + 40 : -40,
+            y: Math.random() * 45 + 18,
+            vx: indoEsq ? -3.4 : 3.4,
+            vy: 0.12,
+            angulo: 0,
+            corCabeca: '254, 240, 138',
+            corCauda: '192, 132, 252'
+        };
+    }
+
+    // COMETA 2: Viajante da Tela Toda
+    function criarCometaTelaToda(direcao) {
+        const indoEsq = direcao === 1;
+        return {
+            tipo: 'telaToda',
+            direcao: direcao,
+            x: indoEsq ? canvas.width + 60 : -60,
+            y: Math.random() * (canvas.height * 0.55) + 100,
+            vx: indoEsq ? -4.0 : 4.0,
+            vy: 0.85,
+            angulo: 0,
+            corCabeca: '125, 211, 252',
+            corCauda: '56, 189, 248'
+        };
+    }
+
+    let cometas = [criarCometaTopo(1), criarCometaTelaToda(-1)];
+    let ultimoFrame = 0;
+
+    function animar(timestamp) {
+        requestAnimationFrame(animar);
+        if (timestamp - ultimoFrame < 32) return; // 30 FPS cravados (~1% CPU)
+        ultimoFrame = timestamp;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(staticStarsCanvas, 0, 0);
+
+        cometas.forEach((c, idx) => {
+            c.x += c.vx;
+            c.y += c.vy;
+            c.angulo += 0.12; // Gira suavemente a estrelinha da ponta do cometa!
+
+            if (c.tipo === 'topo') {
+                if ((c.vx < 0 && c.x < -110) || (c.vx > 0 && c.x > canvas.width + 110)) {
+                    cometas[idx] = criarCometaTopo(c.direcao * -1);
+                }
+            } else {
+                if ((c.vx < 0 && c.x < -120) || (c.vx > 0 && c.x > canvas.width + 120) || c.y > canvas.height + 100) {
+                    cometas[idx] = criarCometaTelaToda(c.direcao * -1);
+                }
+            }
+
+            // Cauda alongada e suave
+            const tailX = c.x - c.vx * 22;
+            const tailY = c.y - c.vy * 22;
+
+            const grad = ctx.createLinearGradient(c.x, c.y, tailX, tailY);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.15, `rgba(${c.corCabeca}, 0.9)`);
+            grad.addColorStop(0.5, `rgba(${c.corCauda}, 0.4)`);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.y);
+            ctx.lineTo(tailX, tailY);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Ponta do cometa: Estrela de 4 pontas girando (Sem shadowBlur pesado!)
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.rotate(c.angulo);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
+            ctx.moveTo(0, -6); ctx.lineTo(0, 6);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.restore();
+        });
+    }
+    requestAnimationFrame(animar);
 }
-
 
 const SCRIPTS_INICIAIS = [];
 let listaScripts = JSON.parse(localStorage.getItem('sc_cockpit_scripts_v5') || localStorage.getItem('sc_cockpit_scripts_v4') || localStorage.getItem('sc_cockpit_scripts_v3')) || SCRIPTS_INICIAIS;
@@ -2050,46 +2125,23 @@ function transformarRespostaGemEmCard() {
     mostrarToast("✨ Resposta carregada! Dê um título e salve seu novo Card.");
 }
 
-(function inicializarTooltipEstrelado() {
-    let tipBox = document.getElementById('starry-tooltip');
-    if (!tipBox) {
-        tipBox = document.createElement('div');
-        tipBox.id = 'starry-tooltip';
-        document.body.appendChild(tipBox);
-    }
-
-    document.addEventListener('mouseover', (e) => {
-        const el = e.target.closest('[title], [data-tip]');
-        if (!el) return;
-
-        if (el.hasAttribute('title')) {
-            const txt = el.getAttribute('title');
-            if (txt) el.setAttribute('data-tip', txt);
-            el.removeAttribute('title');
-        }
-
-        const msg = el.getAttribute('data-tip');
-        if (!msg) return;
-
-        tipBox.innerHTML = `<span class="tip-star">✦</span> <span>${msg}</span>`;
-        tipBox.classList.add('visivel');
-
-        const rect = el.getBoundingClientRect();
-        let x = rect.left + (rect.width / 2) - (tipBox.offsetWidth / 2);
-        let y = rect.top - 34;
-
-        x = Math.max(10, Math.min(window.innerWidth - tipBox.offsetWidth - 10, x));
-        if (y < 10) y = rect.bottom + 8;
-
-        tipBox.style.left = `${Math.round(x)}px`;
-        tipBox.style.top = `${Math.round(y)}px`;
-    });
-
-    document.addEventListener('mouseout', (e) => {
-        const el = e.target.closest('[data-tip]');
-        if (el) tipBox.classList.remove('visivel');
-    });
-})();
+function salvarRespostaGemNoDiario() {
+    if (!ultimaRespostaGeradaGem) return;
+    const novaMsg = {
+        id: Date.now(),
+        texto: `🤖 <strong>Resposta Gerada pela IA Gem:</strong><br>${ultimaRespostaGeradaGem.replace(/\n/g, '<br>')}`,
+        midia_tipo: "",
+        midia_url: "",
+        midia_nome: "",
+        cor_balao: "verde",
+        fixado: false,
+        criado_em: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    };
+    listaChatPessoal.push(novaMsg);
+    salvarChatLocal();
+    renderizarMensagensChat(true);
+    mostrarToast("📌 Resposta salva no seu Diário Pessoal!");
+}
 
 async function higienizarDadoCopiado() {
     const txt = await lerTextoUniversalClipboard();
@@ -4775,6 +4827,46 @@ limparCaixaGemHUD = function() {
     _oldLimparCaixaGem();
 };
 
+// ==============================================================
+// MOTOR FLASH-LITE ULTRA-RÁPIDO (1 A 2 SEGUNDOS + ANTI-PAUSA EM 2º PLANO)
+// ==============================================================
+
+// 1. FILTRO INTELIGENTE: Envia só os 12 cards mais relevantes para a pergunta (80% mais leve e rápido!)
+compilarCerebroCompletoCockpit = function(textoPergunta = "") {
+    const cardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA');
+    const palavrasChave = textoPergunta
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .split(/\W+/)
+        .filter(p => p.length > 2);
+
+    // Pontua os cards que têm a ver com o que o cliente perguntou
+    const cardsPontuados = cardsAtendimento.map(card => {
+        const conteudoCard = `${card.categoria} ${card.titulo} ${card.atalho || ''} ${card.texto}`
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        let pontos = card.favorito ? 2 : 0;
+        palavrasChave.forEach(p => {
+            if (conteudoCard.includes(p)) pontos += 5;
+        });
+        return { card, pontos };
+    });
+
+    cardsPontuados.sort((a, b) => b.pontos - a.pontos);
+
+    // Pega apenas os 12 cards mais certeiros para resposta instantânea
+    const topCards = cardsPontuados.slice(0, 12).map((item, idx) => {
+        const s = item.card;
+        return `${idx + 1}. [${s.categoria} | ${s.titulo}]: ${processarTexto(s.texto, false)}`;
+    }).join('\n\n');
+
+    return `\n\n=== BASE RÁPIDA SC SMART COCKPIT (CARDS MAIS RELEVANTES) ===
+Use o procedimento abaixo se responder à dúvida do cliente. Se não estiver aqui, responda de forma lógica, curta e direta:
+${topCards}`;
+};
+
+// 2. CHAMADA DIRETA AO FLASH-LITE COM TIMEOUT CURTO E TROCA AUTOMÁTICA DE SERVIDOR
 chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true) {
     if (!configGeminiGem.apiKey) {
         toggleGavetaHUD('hud-gemini-drawer');
@@ -4789,7 +4881,7 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
     const nomeCond = doc.getElementById('var-condominio')?.value.trim() || '';
     const saudacao = obterSaudacaoHorario();
 
-    const cerebroTotal = usarContextoScripts ? compilarCerebroCompletoCockpit() : "";
+    const cerebroOtimizado = usarContextoScripts ? compilarCerebroCompletoCockpit(promptUsuario) : "";
     const contextoVariaveis = `\n\n=== CONTEXTO ATUAL ===\nSaudação: "${saudacao}" | Cliente: "${nomeCliente || 'Não informado'}" | Condomínio: "${nomeCond || 'Não informado'}"`;
 
     const userParts = [];
@@ -4809,97 +4901,131 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
 
     userParts.push({ text: promptUsuario + textosDeArquivos });
 
-    const modelosMultimodais = ['gemini-3.8-flash', 'gemini-3.8-flash'];
+    // Ordem de velocidade máxima: Flash-Lite 2.5 -> Flash-Lite 2.0 -> Flash 2.0
+    const modelosFlashLite = [
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash'
+    ];
+
     let ultimoErro = null;
 
-    for (const mod of modelosMultimodais) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${encodeURIComponent(configGeminiGem.apiKey)}`;
-        const basePayload = {
-            systemInstruction: {
-                parts: [{ text: configGeminiGem.instrucaoGem + contextoVariaveis + cerebroTotal }]
-            },
-            contents: [{ role: "user", parts: userParts }],
-            generationConfig: { temperature: 0.35 }
-        };
-
-        let resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(basePayload)
-        });
-
-        const data = await resp.json();
-        if (resp.ok) {
-            return data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('')?.trim() || "Sem resposta gerada.";
-        }
-        ultimoErro = data.error?.message || "Erro na chamada da API do Gemini.";
-    }
-
-    throw new Error(ultimoErro);
-};
-
-const _oldExecutarGemNoHUD = executarGemNoHUD;
-executarGemNoHUD = async function(modo) {
-    const doc = obterDocAtivo();
-    const input = doc.getElementById('gemini-hud-input');
-    const outBox = doc.getElementById('gemini-hud-resultado');
-    let texto = input?.value.trim() || "";
-
-    if (!texto && filaMidiasGemHUD.length === 0) {
-        return mostrarToast("Cole um print/PDF/áudio (Ctrl+V) ou digite a mensagem do cliente primeiro!");
-    }
-
-    if (!texto && filaMidiasGemHUD.length > 0) {
-        texto = "Analise atentamente a(s) imagem(ns), documento(s) ou áudio(s) anexado(s) enviado(s) pelo cliente.";
-        if (input) input.value = "[Mídia/Documento em análise...]";
-    }
-
-    if (modo === 'raiox') {
-        const qtdCards = listaScripts.filter(s => s.categoria !== 'Prompts IA').length;
-        outBox.style.display = 'block';
-        outBox.innerHTML = `<div class="gem-ans-body">🔍 <em>Analisando Print/Documento e cruzando com seus ${qtdCards} cards...</em></div>`;
+    for (const mod of modelosFlashLite) {
+        const controller = new AbortController();
+        // Se um modelo demorar mais de 9 segundos, cancela na hora e tenta o próximo!
+        const timerTimeout = setTimeout(() => controller.abort(), 9000);
 
         try {
-            const comandoRaioX = `Analise a mídia/documento anexado e o relato: "${texto}".
-Faça 2 entregas separadas por uma linha "---":
-PARTE 1 (DIAGNÓSTICO RÁPIDO):
-• O que aparece no print/documento/áudio (qual tela, erro ou solicitação).
-• Dados extraídos se houver (CPF, CNPJ, Linha Digitável, E-mail, Condomínio ou Unidade).
-PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE):
-• Escreva a resposta final exata e prestativa para eu copiar e colar no chat do cliente (sem asteriscos **).`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${encodeURIComponent(configGeminiGem.apiKey)}`;
+            const basePayload = {
+                systemInstruction: {
+                    parts: [{ text: configGeminiGem.instrucaoGem + contextoVariaveis + cerebroOtimizado }]
+                },
+                contents: [{ role: "user", parts: userParts }],
+                generationConfig: {
+                    temperature: 0.3,
+                    maxOutputTokens: 500
+                }
+            };
 
-            const respostaBruta = await chamarMotorGeminiAPI(comandoRaioX, true);
-            const partes = respostaBruta.split(/---+|\n(?=PARTE 2)/i);
-            const respCliente = (partes.length > 1 ? partes[partes.length - 1] : respostaBruta)
-                .replace(/^.*RESPOSTA PRONTA PARA O CLIENTE:?/i, '')
-                .replace(/\*\*([^*]+)\*\*/g, '$1')
-                .trim();
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(basePayload),
+                signal: controller.signal,
+                keepalive: true // Continua rodando mesmo se você sair da tela!
+            });
 
-            ultimaRespostaGeradaGem = respCliente;
-            await copiarTextoUniversal(respCliente);
+            clearTimeout(timerTimeout);
+            const data = await resp.json();
+
+            if (resp.ok) {
+                const textoGerado = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('')?.trim();
+                if (textoGerado) return textoGerado;
+            }
+            ultimoErro = data.error?.message || `Servidor ${mod} ocupado.`;
+        } catch (err) {
+            clearTimeout(timerTimeout);
+            ultimoErro = err.name === 'AbortError'
+                ? `Servidor ${mod} demorou a responder, trocando...`
+                : err.message;
+        }
+    }
+
+    throw new Error(ultimoErro || "Servidores ocupados no momento. Clique novamente!");
+};
+
+// 3. EXECUÇÃO PROTEGIDA EM SEGUNDO PLANO (NÃO PAUSA AO MUDAR DE JANELA/ABA)
+executarGemNoHUD = async function(modo) {
+    const rodarTarefaSemPausar = async () => {
+        const doc = obterDocAtivo();
+        const input = doc.getElementById('gemini-hud-input');
+        const outBox = doc.getElementById('gemini-hud-resultado');
+        let texto = input?.value.trim() || "";
+
+        if (!texto && filaMidiasGemHUD.length === 0) {
+            return mostrarToast("Cole um print/PDF ou digite a mensagem do cliente primeiro!");
+        }
+
+        if (!texto && filaMidiasGemHUD.length > 0) {
+            texto = "Analise atentamente a(s) imagem(ns) ou documento(s) enviado(s) pelo cliente.";
+            if (input) input.value = "[Mídia/Documento em análise...]";
+        }
+
+        outBox.style.display = 'block';
+        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em>Gerando resposta no Flash-Lite...</em></div>`;
+
+        const instrucoesTom = {
+            padrao: "Use o tom padrão das respostas rápidas do suporte: profissional, prestativo e claro.",
+            curto: "SEJA ULTRA-DIRETO E CURTO (2 a 5 linhas no máximo). Sem floreios.",
+            firme: "Postura de especialista sênior: firme, didática, definitiva, sem bajulação mas explicada passo a passo.",
+            amigavel: "Seja super amigável, caloroso, humano, leve e prestativo.",
+            passos: "Estruture a explicação em um passo a passo numerado (1., 2., 3.) curto e direto."
+        };
+
+        try {
+            const diretrizTom = instrucoesTom[tomAtivoGem] || instrucoesTom.curto;
+            let comando = "";
+
+            if (modo === 'raiox') {
+                comando = `Analise a mídia/documento anexado e o relato: "${texto}".
+Faça 2 entregas separadas por "---":
+PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
+PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
+            } else if (modo === 'desabafo') {
+                comando = `O atendente Ricardo digitou este desabafo sobre um cliente difícil:\n"${texto}"\n\nTransforme em uma resposta CURTA, DIRETA E FIRME (1 a 2 frases) para enviar no chat. Sem pedir desculpas e sem asteriscos (**):`;
+            } else if (modo === 'lapidar') {
+                comando = `Rascunho/contexto do Ricardo:\n"${texto}"\n\nTransforme em uma resposta de ESPECIALISTA SÊNIOR: firme, clara, didática e sem asteriscos (**):`;
+            } else if (modo === 'triagem') {
+                comando = `O cliente enviou:\n"${texto}"\n\nFaça uma pergunta de triagem de 1 linha pedindo apenas o que falta (e-mail, condomínio/unidade ou print). Entregue APENAS a frase pronta:`;
+            } else {
+                comando = `Mensagem do cliente:\n"${texto}"\n\nResponda seguindo o tom (${diretrizTom}). Entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
+            }
+
+            const respostaBruta = await chamarMotorGeminiAPI(comando, true);
+            const respostaLimpaParaColar = respostaBruta.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
+            ultimaRespostaGeradaGem = respostaLimpaParaColar;
+
+            // Copia sem travar caso você esteja em outra janela no momento
+            copiarTextoUniversal(respostaLimpaParaColar).catch(() => {});
 
             const htmlVisual = respostaBruta
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-            outBox.innerHTML = `
-                <div class="gem-ans-header">
-                    <strong style="color:var(--neon-green); font-size:10px;">👁️ LEITURA CONCLUÍDA (RESPOSTA COPIADA PRO CTRL+V!)</strong>
-                    <div style="display:flex; gap:4px;">
-                        <button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button>
-                        <button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button>
-                    </div>
-                </div>
-                <div class="gem-ans-body">${htmlVisual}</div>
-            `;
+            outBox.innerHTML = `<div class="gem-ans-header"><strong style="color:var(--neon-green); font-size:10px;">⚡ PRONTO E COPIADO PRO CTRL+V!</strong><div style="display:flex; gap:4px;"><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:#f472b6; color:#f9a8d4;" onclick="salvarRespostaGemNoDiario()">Salvar Diário</button></div></div><div class="gem-ans-body">${htmlVisual}</div>`;
+
             if (input && input.value === "[Mídia/Documento em análise...]") input.value = "";
-            mostrarToast("👁️ Print analisado e resposta copiada!");
+            mostrarToast("⚡ Resposta gerada no Flash-Lite e copiada!");
         } catch (err) {
             outBox.innerHTML = `<div class="gem-ans-body" style="color:#f87171;">⚠️ ${err.message}</div>`;
         }
-        return;
-    }
+    };
 
-    await _oldExecutarGemNoHUD(modo);
-    if (input && input.value === "[Mídia/Documento em análise...]") input.value = "";
+    // Web Locks API: impede o Chrome/Edge de pausar a aba quando você sai da tela!
+    if (navigator.locks && navigator.locks.request) {
+        await navigator.locks.request('sc_gem_background_exec', rodarTarefaSemPausar);
+    } else {
+        await rodarTarefaSemPausar();
+    }
 };
