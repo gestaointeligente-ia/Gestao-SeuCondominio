@@ -4491,10 +4491,12 @@ window.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('DOMContentLoaded', checarSessaoInicial);
 })();
 
+
 // ==============================================================
-// 11. UPGRADE MULTIMODAL OURO + PLANETÁRIO NA SIDEBAR + LIMPEZA UI
+// 11. UPGRADE MULTIMODAL + GEMINI 3.5 FLASH LITE (RACIOCÍNIO MÍNIMO)
 // ==============================================================
 let filaMidiasGemHUD = [];
+let modeloRapidoMemorizado = null;
 
 async function processarArquivoParaGemHUD(file) {
     if (filaMidiasGemHUD.length >= 6) {
@@ -4620,19 +4622,10 @@ window.removerMidiaGemHUD = function(idx) {
 function turbinarInterfaceMultimodalGem() {
     const doc = obterDocAtivo();
 
-    // 1. Remove o botão "Notas" lá de cima do HUD e sua gaveta
+    // Remove o botão "Notas" do HUD imediatamente sem atraso
     doc.querySelectorAll('button[onclick*="hud-notes-drawer"]').forEach(b => b.remove());
     const notesDrawer = doc.getElementById('hud-notes-drawer');
     if (notesDrawer) notesDrawer.remove();
-
-    // 2. Remove o botão "Restaurar Backup (.CSV)" da Sidebar mantendo só o Baixar Backup
-    document.querySelectorAll('.sidebar .menu-item').forEach(link => {
-        if (link.innerText.includes('Restaurar Backup')) {
-            link.style.display = 'none';
-        }
-    });
-    const labelExport = Array.from(document.querySelectorAll('.sidebar .menu-label')).find(el => el.innerText.includes('EXPORTAR'));
-    if (labelExport) labelExport.innerText = 'BACKUP DE SEGURANÇA';
 
     const inputGem = doc.getElementById('gemini-hud-input');
     if (!inputGem || inputGem.dataset.multimodalReady === 'true') return;
@@ -4658,16 +4651,13 @@ function turbinarInterfaceMultimodalGem() {
         inputGem.parentNode.appendChild(fileInput);
     }
 
-    // 3. Posiciona os botões de Mídia/PDF e Ler Print NO FINAL (antes da lixeira) com estilo Translúcido Diferenciado!
     const barraBotoes = inputGem.nextElementSibling;
     if (barraBotoes) {
         const btnLixeira = barraBotoes.lastElementChild;
 
-        // Divisória sutil separando os botões de texto dos botões de mídia
         const sep = doc.createElement('div');
         sep.style.cssText = 'width: 1px; background: rgba(255,255,255,0.12); margin: 2px 3px; align-self: stretch;';
 
-        // Botão 1: Cápsula tracejada elegante para anexar PDF/Imagem/Áudio
         const btnAnexar = doc.createElement('button');
         btnAnexar.type = 'button';
         btnAnexar.className = 'btn-gem-media-utility';
@@ -4675,7 +4665,6 @@ function turbinarInterfaceMultimodalGem() {
         btnAnexar.innerHTML = `<span class="material-icons-round" style="font-size:13px; color:#38bdf8;">attach_file</span> <span>Mídia/PDF</span>`;
         btnAnexar.onclick = () => doc.getElementById('gem-hud-file-input')?.click();
 
-        // Botão 2: Cápsula de Scanner Visual (Raio-X de Print/Documento)
         const btnRaioX = doc.createElement('button');
         btnRaioX.type = 'button';
         btnRaioX.className = 'btn-gem-media-utility scan-mode';
@@ -4688,7 +4677,6 @@ function turbinarInterfaceMultimodalGem() {
         barraBotoes.insertBefore(btnRaioX, btnLixeira);
     }
 
-    // Colagem Híbrida (Ctrl+V de Texto + Imagem)
     inputGem.addEventListener('paste', async (e) => {
         const clipboard = e.clipboardData;
         if (!clipboard) return;
@@ -4735,7 +4723,6 @@ function turbinarInterfaceMultimodalGem() {
         }
     });
 
-    // Drag & Drop direto na caixa da Gem
     inputGem.addEventListener('dragover', (e) => {
         e.preventDefault();
         inputGem.style.borderColor = '#38bdf8';
@@ -4755,49 +4742,8 @@ function turbinarInterfaceMultimodalGem() {
     });
 }
 
-// 4. INJETA O PLANETÁRIO / OBSERVATÓRIO CÓSMICO NA SIDEBAR ESQUERDA
-function injetarPlanetarioSidebar() {
-    const sidebar = document.querySelector('.sidebar');
-    const footer = document.querySelector('.sidebar-footer');
-    if (!sidebar || !footer || document.getElementById('sidebar-cosmic-observatory')) return;
-
-    const planetario = document.createElement('div');
-    planetario.id = 'sidebar-cosmic-observatory';
-    planetario.className = 'sidebar-cosmic-observatory';
-    planetario.setAttribute('data-tip', 'Harmonia Universal • Foco, Luz e Serenidade no Atendimento');
-
-    planetario.innerHTML = `
-        <div class="obs-nebula-backdrop"></div>
-        <div class="obs-starfield">
-            <span class="obs-star s1">✦</span>
-            <span class="obs-star s2">•</span>
-            <span class="obs-star s3">✦</span>
-            <span class="obs-star s4">•</span>
-            <span class="obs-star s5">✧</span>
-        </div>
-
-        <!-- Sistema Planetário em Miniatura -->
-        <div class="obs-planet-system">
-            <div class="obs-orbit-outer">
-                <div class="obs-asteroid"></div>
-            </div>
-            <div class="obs-orbit-inner">
-                <div class="obs-moon"></div>
-            </div>
-            <div class="obs-gas-giant">
-                <div class="obs-planet-ring"></div>
-            </div>
-        </div>
-
-        <!-- HUD Telemetria Estelar Discreta -->
-        <div class="obs-telemetry">
-            <span class="obs-coords">ÓRBITA SERENA • <strong id="obs-live-clock">--:--</strong></span>
-            <span class="obs-sub">CONSTELAÇÃO DE ÓRION</span>
-        </div>
-    `;
-
-    sidebar.insertBefore(planetario, footer);
-
+// Relógio instantâneo do Planetário (já presente no HTML sem piscar!)
+function iniciarRelogioPlanetario() {
     const atualizarRelogioEstelar = () => {
         const el = document.getElementById('obs-live-clock');
         if (el) {
@@ -4807,18 +4753,14 @@ function injetarPlanetarioSidebar() {
     atualizarRelogioEstelar();
     setInterval(atualizarRelogioEstelar, 15000);
 }
+iniciarRelogioPlanetario();
 
 const _oldInicializarHUD = inicializarBarraCopilotHUD;
 inicializarBarraCopilotHUD = function() {
     _oldInicializarHUD();
     turbinarInterfaceMultimodalGem();
     renderizarFilaMidiasGemHUD();
-    injetarPlanetarioSidebar();
 };
-setTimeout(() => {
-    turbinarInterfaceMultimodalGem();
-    injetarPlanetarioSidebar();
-}, 300);
 
 const _oldLimparCaixaGem = limparCaixaGemHUD;
 limparCaixaGemHUD = function() {
@@ -4827,11 +4769,7 @@ limparCaixaGemHUD = function() {
     _oldLimparCaixaGem();
 };
 
-// ==============================================================
-// MOTOR FLASH-LITE ULTRA-RÁPIDO (1 A 2 SEGUNDOS + ANTI-PAUSA EM 2º PLANO)
-// ==============================================================
-
-// 1. FILTRO INTELIGENTE: Envia só os 12 cards mais relevantes para a pergunta (80% mais leve e rápido!)
+// 1. FILTRO INTELIGENTE DE CARDS: Envia apenas os 12 cards mais relevantes para resposta em 1s
 compilarCerebroCompletoCockpit = function(textoPergunta = "") {
     const cardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA');
     const palavrasChave = textoPergunta
@@ -4840,7 +4778,6 @@ compilarCerebroCompletoCockpit = function(textoPergunta = "") {
         .split(/\W+/)
         .filter(p => p.length > 2);
 
-    // Pontua os cards que têm a ver com o que o cliente perguntou
     const cardsPontuados = cardsAtendimento.map(card => {
         const conteudoCard = `${card.categoria} ${card.titulo} ${card.atalho || ''} ${card.texto}`
             .toLowerCase()
@@ -4855,7 +4792,6 @@ compilarCerebroCompletoCockpit = function(textoPergunta = "") {
 
     cardsPontuados.sort((a, b) => b.pontos - a.pontos);
 
-    // Pega apenas os 12 cards mais certeiros para resposta instantânea
     const topCards = cardsPontuados.slice(0, 12).map((item, idx) => {
         const s = item.card;
         return `${idx + 1}. [${s.categoria} | ${s.titulo}]: ${processarTexto(s.texto, false)}`;
@@ -4866,7 +4802,7 @@ Use o procedimento abaixo se responder à dúvida do cliente. Se não estiver aq
 ${topCards}`;
 };
 
-// 2. CHAMADA DIRETA AO FLASH-LITE COM TIMEOUT CURTO E TROCA AUTOMÁTICA DE SERVIDOR
+// 2. MOTOR GEMINI 3.5 FLASH LITE / 3.5 FLASH / 3.8 FLASH COM RACIOCÍNIO SEMPRE NO MÍNIMO
 chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true) {
     if (!configGeminiGem.apiKey) {
         toggleGavetaHUD('hud-gemini-drawer');
@@ -4901,61 +4837,90 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
 
     userParts.push({ text: promptUsuario + textosDeArquivos });
 
-    // Ordem de velocidade máxima: Flash-Lite 2.5 -> Flash-Lite 2.0 -> Flash 2.0
-    const modelosFlashLite = [
-        'gemini-2.5-flash-lite',
-        'gemini-2.0-flash-lite',
-        'gemini-2.0-flash'
-    ];
+    // Prioriza 3.5 Flash Lite -> 3.5 Flash -> 3.8 Flash (e memoriza o que responder mais rápido!)
+    const filaModelos = modeloRapidoMemorizado
+        ? [modeloRapidoMemorizado, 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash']
+        : ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
 
+    const modelosUnicos = [...new Set(filaModelos)];
     let ultimoErro = null;
 
-    for (const mod of modelosFlashLite) {
+    for (const mod of modelosUnicos) {
         const controller = new AbortController();
-        // Se um modelo demorar mais de 9 segundos, cancela na hora e tenta o próximo!
-        const timerTimeout = setTimeout(() => controller.abort(), 9000);
+        const timerTimeout = setTimeout(() => controller.abort(), 8500);
 
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${encodeURIComponent(configGeminiGem.apiKey)}`;
-            const basePayload = {
+
+            // Raciocínio cravado no MÍNIMO (thinkingBudget: 0) para resposta instantânea
+            const payloadMinimo = {
                 systemInstruction: {
                     parts: [{ text: configGeminiGem.instrucaoGem + contextoVariaveis + cerebroOtimizado }]
                 },
                 contents: [{ role: "user", parts: userParts }],
                 generationConfig: {
-                    temperature: 0.3,
-                    maxOutputTokens: 500
+                    temperature: 0.25,
+                    maxOutputTokens: 450,
+                    thinkingConfig: {
+                        thinkingBudget: 0
+                    }
                 }
             };
 
-            const resp = await fetch(url, {
+            let resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(basePayload),
+                body: JSON.stringify(payloadMinimo),
                 signal: controller.signal,
-                keepalive: true // Continua rodando mesmo se você sair da tela!
+                keepalive: true
             });
+
+            // Se a variante Lite já não usar thinkingConfig, envia limpo no mesmo milissegundo
+            if (resp.status === 400) {
+                const payloadLimpo = {
+                    systemInstruction: payloadMinimo.systemInstruction,
+                    contents: payloadMinimo.contents,
+                    generationConfig: {
+                        temperature: 0.25,
+                        maxOutputTokens: 450
+                    }
+                };
+                resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadLimpo),
+                    signal: controller.signal,
+                    keepalive: true
+                });
+            }
 
             clearTimeout(timerTimeout);
             const data = await resp.json();
 
             if (resp.ok) {
-                const textoGerado = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('')?.trim();
-                if (textoGerado) return textoGerado;
+                const textoGerado = data.candidates?.[0]?.content?.parts
+                    ?.filter(p => !p.thought)
+                    ?.map(p => p.text || '')
+                    .join('')?.trim();
+
+                if (textoGerado) {
+                    modeloRapidoMemorizado = mod;
+                    return textoGerado;
+                }
             }
-            ultimoErro = data.error?.message || `Servidor ${mod} ocupado.`;
+            ultimoErro = data.error?.message || `Modelo ${mod} indisponível.`;
         } catch (err) {
             clearTimeout(timerTimeout);
             ultimoErro = err.name === 'AbortError'
-                ? `Servidor ${mod} demorou a responder, trocando...`
+                ? `Modelo ${mod} demorou a responder, trocando...`
                 : err.message;
         }
     }
 
-    throw new Error(ultimoErro || "Servidores ocupados no momento. Clique novamente!");
+    throw new Error(ultimoErro || "Servidores ocupados no momento. Tente novamente!");
 };
 
-// 3. EXECUÇÃO PROTEGIDA EM SEGUNDO PLANO (NÃO PAUSA AO MUDAR DE JANELA/ABA)
+// 3. EXECUÇÃO EM SEGUNDO PLANO (NÃO PAUSA AO SAIR DA TELA)
 executarGemNoHUD = async function(modo) {
     const rodarTarefaSemPausar = async () => {
         const doc = obterDocAtivo();
@@ -4973,7 +4938,7 @@ executarGemNoHUD = async function(modo) {
         }
 
         outBox.style.display = 'block';
-        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em>Gerando resposta no Flash-Lite...</em></div>`;
+        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em>Gerando resposta instantânea (Raciocínio Mínimo)...</em></div>`;
 
         const instrucoesTom = {
             padrao: "Use o tom padrão das respostas rápidas do suporte: profissional, prestativo e claro.",
@@ -4989,9 +4954,9 @@ executarGemNoHUD = async function(modo) {
 
             if (modo === 'raiox') {
                 comando = `Analise a mídia/documento anexado e o relato: "${texto}".
-Faça 2 entregas separadas por "---":
-PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
-PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
+			Faça 2 entregas separadas por "---":
+			PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
+			PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
             } else if (modo === 'desabafo') {
                 comando = `O atendente Ricardo digitou este desabafo sobre um cliente difícil:\n"${texto}"\n\nTransforme em uma resposta CURTA, DIRETA E FIRME (1 a 2 frases) para enviar no chat. Sem pedir desculpas e sem asteriscos (**):`;
             } else if (modo === 'lapidar') {
@@ -5006,7 +4971,6 @@ PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no
             const respostaLimpaParaColar = respostaBruta.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
             ultimaRespostaGeradaGem = respostaLimpaParaColar;
 
-            // Copia sem travar caso você esteja em outra janela no momento
             copiarTextoUniversal(respostaLimpaParaColar).catch(() => {});
 
             const htmlVisual = respostaBruta
@@ -5016,13 +4980,12 @@ PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no
             outBox.innerHTML = `<div class="gem-ans-header"><strong style="color:var(--neon-green); font-size:10px;">⚡ PRONTO E COPIADO PRO CTRL+V!</strong><div style="display:flex; gap:4px;"><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:#f472b6; color:#f9a8d4;" onclick="salvarRespostaGemNoDiario()">Salvar Diário</button></div></div><div class="gem-ans-body">${htmlVisual}</div>`;
 
             if (input && input.value === "[Mídia/Documento em análise...]") input.value = "";
-            mostrarToast("⚡ Resposta gerada no Flash-Lite e copiada!");
+            mostrarToast("⚡ Resposta pronta e copiada!");
         } catch (err) {
             outBox.innerHTML = `<div class="gem-ans-body" style="color:#f87171;">⚠️ ${err.message}</div>`;
         }
     };
 
-    // Web Locks API: impede o Chrome/Edge de pausar a aba quando você sai da tela!
     if (navigator.locks && navigator.locks.request) {
         await navigator.locks.request('sc_gem_background_exec', rodarTarefaSemPausar);
     } else {
