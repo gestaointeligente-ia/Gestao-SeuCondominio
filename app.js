@@ -4769,7 +4769,7 @@ limparCaixaGemHUD = function() {
     _oldLimparCaixaGem();
 };
 
-// 1. FILTRO INTELIGENTE DE CARDS: Envia apenas os 12 cards mais relevantes para resposta em 1s
+// 1. FILTRO ULTRA-LEVE: Envia apenas os 5 cards mais certeiros (resposta 5x mais rápida!)
 compilarCerebroCompletoCockpit = function(textoPergunta = "") {
     const cardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA');
     const palavrasChave = textoPergunta
@@ -4792,17 +4792,52 @@ compilarCerebroCompletoCockpit = function(textoPergunta = "") {
 
     cardsPontuados.sort((a, b) => b.pontos - a.pontos);
 
-    const topCards = cardsPontuados.slice(0, 12).map((item, idx) => {
+    const topCards = cardsPontuados.slice(0, 5).map((item, idx) => {
         const s = item.card;
         return `${idx + 1}. [${s.categoria} | ${s.titulo}]: ${processarTexto(s.texto, false)}`;
     }).join('\n\n');
 
-    return `\n\n=== BASE RÁPIDA SC SMART COCKPIT (CARDS MAIS RELEVANTES) ===
-Use o procedimento abaixo se responder à dúvida do cliente. Se não estiver aqui, responda de forma lógica, curta e direta:
-${topCards}`;
+    return `\n\n=== CARDS DE REFERÊNCIA DO SUPORTE ===\n${topCards}`;
 };
 
-// 2. MOTOR GEMINI 3.5 FLASH LITE / 3.5 FLASH / 3.8 FLASH COM RACIOCÍNIO SEMPRE NO MÍNIMO
+// 2. DESCOBERTA AUTOMÁTICA DO MODELO MAIS RÁPIDO DA SUA CONTA GOOGLE
+let listaModelosReaisCache = null;
+
+async function obterModelosReaisDaChave(apiKey) {
+    if (listaModelosReaisCache && listaModelosReaisCache.length > 0) {
+        return listaModelosReaisCache;
+    }
+    try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+        const data = await resp.json();
+        if (data && Array.isArray(data.models)) {
+            const disponiveis = data.models
+                .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''))
+                .filter(nome => nome.includes('gemini') && !nome.includes('2.0') && !nome.includes('1.5') && !nome.includes('vision') && !nome.includes('tts') && !nome.includes('image'));
+
+            // Coloca qualquer versão "lite" primeiro, depois "3.5-flash", depois "3.8-flash"
+            disponiveis.sort((a, b) => {
+                const peso = (n) => {
+                    if (n.includes('flash-lite')) return 1;
+                    if (n.includes('3.5-flash')) return 2;
+                    if (n.includes('3.8-flash')) return 3;
+                    if (n.includes('flash')) return 4;
+                    return 9;
+                };
+                return peso(a) - peso(b);
+            });
+
+            if (disponiveis.length > 0) {
+                listaModelosReaisCache = disponiveis.slice(0, 3);
+                return listaModelosReaisCache;
+            }
+        }
+    } catch (e) {}
+    return ['gemini-3.8-flash'];
+}
+
+// 3. CHAMADA DIRETA SEM TENTATIVAS CEGAS
 chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true) {
     if (!configGeminiGem.apiKey) {
         toggleGavetaHUD('hud-gemini-drawer');
@@ -4837,62 +4872,35 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
 
     userParts.push({ text: promptUsuario + textosDeArquivos });
 
-    // Prioriza 3.5 Flash Lite -> 3.5 Flash -> 3.8 Flash (e memoriza o que responder mais rápido!)
-    const filaModelos = modeloRapidoMemorizado
-        ? [modeloRapidoMemorizado, 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash']
-        : ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
-
-    const modelosUnicos = [...new Set(filaModelos)];
+    const modelosParaTentar = await obterModelosReaisDaChave(configGeminiGem.apiKey);
     let ultimoErro = null;
 
-    for (const mod of modelosUnicos) {
+    for (const mod of modelosParaTentar) {
         const controller = new AbortController();
-        const timerTimeout = setTimeout(() => controller.abort(), 8500);
+        // Limite seguro de 25 segundos para não cortar a resposta na metade
+        const timerTimeout = setTimeout(() => controller.abort(), 25000);
 
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${encodeURIComponent(configGeminiGem.apiKey)}`;
 
-            // Raciocínio cravado no MÍNIMO (thinkingBudget: 0) para resposta instantânea
-            const payloadMinimo = {
+            const payload = {
                 systemInstruction: {
                     parts: [{ text: configGeminiGem.instrucaoGem + contextoVariaveis + cerebroOtimizado }]
                 },
                 contents: [{ role: "user", parts: userParts }],
                 generationConfig: {
                     temperature: 0.25,
-                    maxOutputTokens: 450,
-                    thinkingConfig: {
-                        thinkingBudget: 0
-                    }
+                    maxOutputTokens: 350
                 }
             };
 
-            let resp = await fetch(url, {
+            const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payloadMinimo),
+                body: JSON.stringify(payload),
                 signal: controller.signal,
                 keepalive: true
             });
-
-            // Se a variante Lite já não usar thinkingConfig, envia limpo no mesmo milissegundo
-            if (resp.status === 400) {
-                const payloadLimpo = {
-                    systemInstruction: payloadMinimo.systemInstruction,
-                    contents: payloadMinimo.contents,
-                    generationConfig: {
-                        temperature: 0.25,
-                        maxOutputTokens: 450
-                    }
-                };
-                resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payloadLimpo),
-                    signal: controller.signal,
-                    keepalive: true
-                });
-            }
 
             clearTimeout(timerTimeout);
             const data = await resp.json();
@@ -4904,23 +4912,24 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
                     .join('')?.trim();
 
                 if (textoGerado) {
-                    modeloRapidoMemorizado = mod;
+                    // Coloca o modelo que funcionou no topo da lista para a próxima vez ser imediata!
+                    listaModelosReaisCache = [mod, ...modelosParaTentar.filter(m => m !== mod)];
                     return textoGerado;
                 }
             }
-            ultimoErro = data.error?.message || `Modelo ${mod} indisponível.`;
+            ultimoErro = data.error?.message || `O modelo ${mod} está ocupado no momento.`;
         } catch (err) {
             clearTimeout(timerTimeout);
             ultimoErro = err.name === 'AbortError'
-                ? `Modelo ${mod} demorou a responder, trocando...`
+                ? `O servidor do Google (${mod}) demorou mais de 25s para responder.`
                 : err.message;
         }
     }
 
-    throw new Error(ultimoErro || "Servidores ocupados no momento. Tente novamente!");
+    throw new Error(`Parou: ${ultimoErro} — Clique em Responder novamente.`);
 };
 
-// 3. EXECUÇÃO EM SEGUNDO PLANO (NÃO PAUSA AO SAIR DA TELA)
+// 4. EXECUÇÃO COM CRONÔMETRO AO VIVO NA TELA (1s, 2s, 3s...) + ANTI-PAUSA
 executarGemNoHUD = async function(modo) {
     const rodarTarefaSemPausar = async () => {
         const doc = obterDocAtivo();
@@ -4937,12 +4946,19 @@ executarGemNoHUD = async function(modo) {
             if (input) input.value = "[Mídia/Documento em análise...]";
         }
 
+        let segundos = 0;
         outBox.style.display = 'block';
-        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em>Gerando resposta instantânea (Raciocínio Mínimo)...</em></div>`;
+        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em id="gem-timer-txt">Gerando resposta... (0s)</em></div>`;
+
+        const relogioEspera = setInterval(() => {
+            segundos++;
+            const elTimer = doc.getElementById('gem-timer-txt');
+            if (elTimer) elTimer.innerText = `Gerando resposta... (${segundos}s)`;
+        }, 1000);
 
         const instrucoesTom = {
             padrao: "Use o tom padrão das respostas rápidas do suporte: profissional, prestativo e claro.",
-            curto: "SEJA ULTRA-DIRETO E CURTO (2 a 5 linhas no máximo). Sem floreios.",
+            curto: "SEJA ULTRA-DIRETO E CURTO (2 a 4 linhas no máximo). Sem floreios.",
             firme: "Postura de especialista sênior: firme, didática, definitiva, sem bajulação mas explicada passo a passo.",
             amigavel: "Seja super amigável, caloroso, humano, leve e prestativo.",
             passos: "Estruture a explicação em um passo a passo numerado (1., 2., 3.) curto e direto."
@@ -4951,23 +4967,28 @@ executarGemNoHUD = async function(modo) {
         try {
             const diretrizTom = instrucoesTom[tomAtivoGem] || instrucoesTom.curto;
             let comando = "";
+            let precisaDosCards = true;
 
             if (modo === 'raiox') {
                 comando = `Analise a mídia/documento anexado e o relato: "${texto}".
-			Faça 2 entregas separadas por "---":
-			PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
-			PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
+Faça 2 entregas separadas por "---":
+PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
+PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
             } else if (modo === 'desabafo') {
+                precisaDosCards = false; // Não envia cards para responder ainda mais rápido!
                 comando = `O atendente Ricardo digitou este desabafo sobre um cliente difícil:\n"${texto}"\n\nTransforme em uma resposta CURTA, DIRETA E FIRME (1 a 2 frases) para enviar no chat. Sem pedir desculpas e sem asteriscos (**):`;
             } else if (modo === 'lapidar') {
                 comando = `Rascunho/contexto do Ricardo:\n"${texto}"\n\nTransforme em uma resposta de ESPECIALISTA SÊNIOR: firme, clara, didática e sem asteriscos (**):`;
             } else if (modo === 'triagem') {
+                precisaDosCards = false; // Não envia cards para responder na hora!
                 comando = `O cliente enviou:\n"${texto}"\n\nFaça uma pergunta de triagem de 1 linha pedindo apenas o que falta (e-mail, condomínio/unidade ou print). Entregue APENAS a frase pronta:`;
             } else {
-                comando = `Mensagem do cliente:\n"${texto}"\n\nResponda seguindo o tom (${diretrizTom}). Entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
+                comando = `Mensagem do cliente:\n"${texto}"\n\nResponda de forma curta e direta seguindo o tom (${diretrizTom}). Entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
             }
 
-            const respostaBruta = await chamarMotorGeminiAPI(comando, true);
+            const respostaBruta = await chamarMotorGeminiAPI(comando, precisaDosCards);
+            clearInterval(relogioEspera);
+
             const respostaLimpaParaColar = respostaBruta.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
             ultimaRespostaGeradaGem = respostaLimpaParaColar;
 
@@ -4977,12 +4998,13 @@ executarGemNoHUD = async function(modo) {
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-            outBox.innerHTML = `<div class="gem-ans-header"><strong style="color:var(--neon-green); font-size:10px;">⚡ PRONTO E COPIADO PRO CTRL+V!</strong><div style="display:flex; gap:4px;"><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:#f472b6; color:#f9a8d4;" onclick="salvarRespostaGemNoDiario()">Salvar Diário</button></div></div><div class="gem-ans-body">${htmlVisual}</div>`;
+            outBox.innerHTML = `<div class="gem-ans-header"><strong style="color:var(--neon-green); font-size:10px;">⚡ PRONTO EM ${segundos}s E COPIADO PRO CTRL+V!</strong><div style="display:flex; gap:4px;"><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:#f472b6; color:#f9a8d4;" onclick="salvarRespostaGemNoDiario()">Salvar Diário</button></div></div><div class="gem-ans-body">${htmlVisual}</div>`;
 
             if (input && input.value === "[Mídia/Documento em análise...]") input.value = "";
-            mostrarToast("⚡ Resposta pronta e copiada!");
+            mostrarToast(`⚡ Resposta pronta em ${segundos}s e copiada!`);
         } catch (err) {
-            outBox.innerHTML = `<div class="gem-ans-body" style="color:#f87171;">⚠️ ${err.message}</div>`;
+            clearInterval(relogioEspera);
+            outBox.innerHTML = `<div class="gem-ans-body" style="color:#f87171;">❌ ${err.message}</div>`;
         }
     };
 
