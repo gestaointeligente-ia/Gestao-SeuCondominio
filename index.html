@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
     
     <!-- Motores Oficiais de Leitura de PDF (Mozilla PDF.js) e Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -34,7 +34,8 @@
     <div class="ethereal-moon" title="Luz e Serenidade"></div>
 
     <div class="app-container">
-        <!-- SIDEBAR -->
+       
+	   <!-- SIDEBAR -->
         <aside class="sidebar glass-panel">
             <div class="brand-header">
                 <div class="logo-box">
@@ -61,26 +62,47 @@
                     <span class="material-icons-round" style="color: var(--neon-green);">table_view</span>
                     Extrator PDF (Fase 2)
                 </a>
-            </div>
-
-            <a href="#" id="nav-chat" class="menu-item" onclick="trocarModulo('chat')">
+                <a href="#" id="nav-chat" class="menu-item" onclick="trocarModulo('chat')">
                     <span class="material-icons-round" style="color: #f472b6;">auto_stories</span>
                     Diário & Chat Pessoal
                     <span id="contador-chat-sidebar" class="badge-tag" style="background: rgba(244, 114, 182, 0.2); color: #f9a8d4;">0</span>
                 </a>
+            </div>
                  
-            <div class="menu-section" style="margin-top: 20px;">
-                <p class="menu-label">EXPORTAR E IMPORTAR</p>
-
+            <div class="menu-section" style="margin-top: 14px;">
+                <p class="menu-label">BACKUP DE SEGURANÇA</p>
                 <a href="#" class="menu-item" onclick="exportarBackupCSV()">
                     <span class="material-icons-round" style="color: var(--neon-green);">download</span>
                     Baixar Backup (.CSV)
                 </a>
-                <a href="#" class="menu-item" onclick="document.getElementById('input-restore-csv').click()">
-                    <span class="material-icons-round" style="color: var(--neon-yellow);">upload_file</span>
-                    Restaurar Backup (.CSV)
-                </a>
                 <input type="file" id="input-restore-csv" accept=".csv,.json" style="display: none;" onchange="importarBackupArquivo(event)">
+            </div>
+
+            <!-- PLANETÁRIO NATIVO NO HTML (NÃO PISCA NO F5!) -->
+            <div id="sidebar-cosmic-observatory" class="sidebar-cosmic-observatory" data-tip="Harmonia Universal • Foco, Luz e Serenidade no Atendimento">
+                <div class="obs-nebula-backdrop"></div>
+                <div class="obs-starfield">
+                    <span class="obs-star s1">✦</span>
+                    <span class="obs-star s2">•</span>
+                    <span class="obs-star s3">✦</span>
+                    <span class="obs-star s4">•</span>
+                    <span class="obs-star s5">✧</span>
+                </div>
+                <div class="obs-planet-system">
+                    <div class="obs-orbit-outer">
+                        <div class="obs-asteroid"></div>
+                    </div>
+                    <div class="obs-orbit-inner">
+                        <div class="obs-moon"></div>
+                    </div>
+                    <div class="obs-gas-giant">
+                        <div class="obs-planet-ring"></div>
+                    </div>
+                </div>
+                <div class="obs-telemetry">
+                    <span class="obs-coords">ÓRBITA SERENA • <strong id="obs-live-clock">--:--</strong></span>
+                    <span class="obs-sub">CONSTELAÇÃO DE ÓRION</span>
+                </div>
             </div>
 
             <div class="sidebar-footer">
