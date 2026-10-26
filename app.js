@@ -4354,6 +4354,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+	
 
 // ==============================================================
 // 10. BLINDAGEM NÍVEL MÁXIMO: LOGIN SUPABASE AUTH + AUTO-SYNC
