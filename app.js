@@ -4272,7 +4272,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // COLAGEM INTELIGENTE (CTRL+V): MANTÉM NEGRITO E REGISTRA NO CTRL+Z!
+    // COLAGEM INTELIGENTE E INTERCEPTAÇÃO DE IMAGENS (CTRL+V)
     document.addEventListener('paste', (e) => {
         const modChat = document.getElementById('modulo-chat');
         if (!modChat || modChat.style.display === 'none') return;
@@ -4281,20 +4281,28 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!items) return;
 
         const arquivosColados = [];
+        let colouImagemDireta = false;
+
+        // 1. Verifica arquivos de imagem/vídeo no clipboard (Print Screen ou Copiar imagem)
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1 || items[i].type.indexOf('video') !== -1) {
                 const f = items[i].getAsFile();
-                if (f) arquivosColados.push(f);
+                if (f) {
+                    arquivosColados.push(f);
+                    colouImagemDireta = true;
+                }
             }
         }
 
-        if (arquivosColados.length > 0) {
+        // Se capturou imagens diretas, processa e impede a colagem padrão
+        if (colouImagemDireta) {
             e.preventDefault();
             adicionarArquivosNaFilaStaging(arquivosColados);
             mostrarToast(`🖼️ +${arquivosColados.length} imagem(ns) na fila (${Math.min(listaAnexosStaging.length + arquivosColados.length, 10)}/10)!`);
             return;
         }
 
+        // 2. Se for texto puro (Cópia em massa do WhatsApp com a anomalia "imagem")
         const editorAtivo = obterEditorRico();
         if (editorAtivo && (document.activeElement === editorAtivo || editorAtivo.contains(document.activeElement))) {
             const htmlColado = e.clipboardData.getData('text/html');
@@ -4303,11 +4311,23 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             registrarEstadoUndo();
 
+            // Interceptador da string isolada "imagem" (Comum no WhatsApp Web)
+            let textoProcessado = textoPuro;
+            if (textoPuro && /\bimagem\b/i.test(textoPuro)) {
+                textoProcessado = textoPuro.replace(/\bimagem\b/gi, ' [IMAGEM_ANEXADA_ABAIXO] ');
+                // Opcional: Você pode forçar a inserção como texto simples aqui se preferir
+                document.execCommand('insertText', false, textoProcessado);
+                mostrarToast('Anomalia de texto "imagem" tratada!');
+                salvarSelecaoEditorRico();
+                registrarEstadoUndo();
+                return; // Encerra aqui se era texto com anomalia
+            }
+
+            // Fallback para colagem rica normal
             if (htmlColado) {
                 const parser = new DOMParser();
                 const docTemp = parser.parseFromString(htmlColado, 'text/html');
 
-                // 1. Destrava listas (<ol>, <ul>, <li>) coladas de outros lugares para NÃO prender na numeração!
                 docTemp.body.querySelectorAll('ol, ul').forEach(lista => {
                     const frag = docTemp.createDocumentFragment();
                     lista.querySelectorAll('li').forEach((li, idx) => {
@@ -4318,7 +4338,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     lista.replaceWith(frag);
                 });
 
-                // 2. Remove estilos externos mas preserva <strong>, <b>, <em>, <i>, <u>
                 docTemp.body.querySelectorAll('*').forEach(el => {
                     el.removeAttribute('style');
                     el.removeAttribute('class');
@@ -4328,13 +4347,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 let htmlLimpo = docTemp.body.innerHTML.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
                 document.execCommand('insertHTML', false, `<span style="color:#ffffff;">${htmlLimpo}</span><div><br></div>`);
+            } else if (textoPuro) {
+                 document.execCommand('insertText', false, textoPuro);
             }
 
             salvarSelecaoEditorRico();
             registrarEstadoUndo();
         }
     });
-});
 
 // ==============================================================
 // 10. BLINDAGEM NÍVEL MÁXIMO: LOGIN SUPABASE AUTH + AUTO-SYNC
