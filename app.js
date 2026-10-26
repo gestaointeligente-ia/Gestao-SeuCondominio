@@ -1716,7 +1716,11 @@ function inicializarBarraCopilotHUD() {
 
             <!-- Caixa onde você cola a fala do cliente ou digita seu desabafo -->
             <div class="gemini-live-box" style="display:flex; flex-direction:column; gap:6px;">
-                <textarea id="gemini-hud-input" style="height:${alturaSalva};" placeholder="Cole aqui a fala do cliente, ou digite na sinceridade/raiva o que quer dizer e clique em '😤 Desabafo'..." oninput="salvarTextoRascunhoGem(this.value)"></textarea>
+               <textarea id="gemini-hud-input" style="height:${alturaSalva};" placeholder="Cole aqui a conversa inteira (Texto + Imagens + Áudio + PDF) ou dê Ctrl+V em até 10 prints..." oninput="salvarTextoRascunhoGem(this.value)"></textarea>
+                
+                <!-- GALERIA AUTOMÁTICA DE ATÉ 10 MÍDIAS COLADAS NA TELA -->
+                <div id="gem-hud-attachments-bar" style="display:none; gap:8px; flex-wrap:wrap; align-items:center; padding:8px 10px; background:rgba(2, 6, 18, 0.92); border:1px dashed #38bdf8; border-radius:9px;"></div>
+                <input type="file" id="gem-hud-file-input" multiple accept="image/*,application/pdf,audio/*,video/*,.csv,.txt,.ofx" style="display:none;" onchange="aoEscolherArquivosGemNativo(event)">
 
                 <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:stretch; width:100%;">
                     <button type="button" class="btn-hud-action btn-hud-ai-gem" style="flex:1 1 95px; justify-content:center; padding:7px 6px; font-size:10px; font-weight:800;" onclick="executarGemNoHUD('responder')" data-tip="Consulta seus 77 cards + sua Gem + Pesquisa Ampla!">
@@ -1733,6 +1737,12 @@ function inicializarBarraCopilotHUD() {
                     </button>
                     <button type="button" class="btn-hud-action" style="flex:1 1 95px; justify-content:center; padding:7px 6px; font-size:10px; font-weight:800; border-color:var(--neon-green); color:#6ee7b7;" onclick="colarDoClipboardNoInputGem()" data-tip="Cola do seu Ctrl+C e já gera a resposta na hora!">
                         📋 Colar & Responder
+                    </button>
+					<button type="button" class="btn-gem-media-utility" onclick="document.getElementById('gem-hud-file-input').click()" data-tip="Anexar até 10 Prints, PDFs ou Áudios">
+                        <span class="material-icons-round" style="font-size:13px; color:#38bdf8;">attach_file</span> Mídia/PDF
+                    </button>
+                    <button type="button" class="btn-gem-media-utility scan-mode" onclick="executarGemNoHUD('raiox')" data-tip="Lê o print/PDF/áudio na tela e monta a resposta!">
+                        <span class="material-icons-round" style="font-size:13px; color:#e879f9;">center_focus_strong</span> Ler Print
                     </button>
                     <button type="button" class="btn-reset-mini" style="flex:0 0 auto; padding:6px 8px;" onclick="limparCaixaGemHUD()" data-tip="Limpar caixa">
                         <span class="material-icons-round" style="font-size:13px;">delete_outline</span>
