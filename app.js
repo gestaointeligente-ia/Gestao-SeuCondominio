@@ -4272,7 +4272,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // COLAGEM INTELIGENTE E INTERCEPTAÇÃO DE IMAGENS (CTRL+V)
+   // COLAGEM INTELIGENTE E INTERCEPTAÇÃO DE IMAGENS (CTRL+V)
     document.addEventListener('paste', (e) => {
         const modChat = document.getElementById('modulo-chat');
         if (!modChat || modChat.style.display === 'none') return;
@@ -4294,7 +4294,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Se capturou imagens diretas, processa e impede a colagem padrão
+        // Se capturou imagens diretas, processa e impede a colagem padrão (Permite até 10 na fila)
         if (colouImagemDireta) {
             e.preventDefault();
             adicionarArquivosNaFilaStaging(arquivosColados);
@@ -4302,7 +4302,7 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Se for texto puro (Cópia em massa do WhatsApp com a anomalia "imagem")
+        // 2. Se for texto puro ou html rico (Cópia em massa do WhatsApp ou textos normais)
         const editorAtivo = obterEditorRico();
         if (editorAtivo && (document.activeElement === editorAtivo || editorAtivo.contains(document.activeElement))) {
             const htmlColado = e.clipboardData.getData('text/html');
@@ -4311,19 +4311,17 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             registrarEstadoUndo();
 
-            // Interceptador da string isolada "imagem" (Comum no WhatsApp Web)
-            let textoProcessado = textoPuro;
+            // Interceptador da string isolada "imagem" (Anomalia do WhatsApp Web)
             if (textoPuro && /\bimagem\b/i.test(textoPuro)) {
-                textoProcessado = textoPuro.replace(/\bimagem\b/gi, ' [IMAGEM_ANEXADA_ABAIXO] ');
-                // Opcional: Você pode forçar a inserção como texto simples aqui se preferir
+                let textoProcessado = textoPuro.replace(/\bimagem\b/gi, '\n[IMAGEM_ANEXADA_ABAIXO]\n');
                 document.execCommand('insertText', false, textoProcessado);
                 mostrarToast('Anomalia de texto "imagem" tratada!');
                 salvarSelecaoEditorRico();
                 registrarEstadoUndo();
-                return; // Encerra aqui se era texto com anomalia
+                return;
             }
 
-            // Fallback para colagem rica normal
+            // Fallback para colagem rica normal mantendo negrito e cores
             if (htmlColado) {
                 const parser = new DOMParser();
                 const docTemp = parser.parseFromString(htmlColado, 'text/html');
@@ -4355,6 +4353,7 @@ window.addEventListener('DOMContentLoaded', () => {
             registrarEstadoUndo();
         }
     });
+});
 
 // ==============================================================
 // 10. BLINDAGEM NÍVEL MÁXIMO: LOGIN SUPABASE AUTH + AUTO-SYNC
