@@ -1806,6 +1806,8 @@ function inicializarBarraCopilotHUD() {
         const gemDrawer = doc.getElementById('hud-gemini-drawer');
         if (gemDrawer) gemDrawer.style.display = 'flex';
     }
+
+	conectarColagemTotalGemHUD();
 }
 
 // Alterna a altura da caixa da Gem (Compacta -> Média -> Grande) sem precisar daquela alça branca que bugava a borda!
