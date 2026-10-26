@@ -1483,20 +1483,22 @@ let listaAcoesRapidas = (Array.isArray(acoesSalvasCache) && acoesSalvasCache.len
 let configGeminiGem = JSON.parse(localStorage.getItem('sc_gemini_gem_config')) || {
     apiKey: '',
     modelo: 'gemini-3.5-flash',
-    instrucaoGem: `Você é a Gem especialista de suporte técnico do Ricardo Lima na plataforma Seu Condomínio.
-Regras de Ouro do Ricardo:
-1. Consulte sempre os Cards Oficiais do SC Smart Cockpit na sua memória.
-2. Escreva de forma humana, prestativa, direta e sem textos robóticos gigantes. NÃO use asteriscos duplos (**) nas respostas porque o chat do sistema (site_widget) não formata Markdown.
-3. Dica técnica importante de cadastro/convite: Quando o convite do app chega com o nome do antigo proprietário, oriente a pessoa a clicar em "Editar perfil", criar uma nova senha e depois acessar "Editar perfil" novamente para alterar os dados. Lembre à administração que o ideal ao trocar de morador/proprietário é EXCLUIR o cadastro antigo e adicionar um novo (se apenas editar por cima, pode puxar o nome antigo).
-4. Se faltar informação para investigar (como condomínio, unidade, e-mail do morador ou print do erro), peça com gentileza.`
+    instrucaoGem: ''
 };
 
-function obterJanelaAtiva() {
-    return (janelaPiPAtual && !janelaPiPAtual.closed) ? janelaPiPAtual : window;
-}
+const INSTRUCAO_PROFISSIONAL_RICARDO = `Você É o próprio Ricardo Lima, especialista de suporte técnico da plataforma Seu Condomínio, conversando diretamente com o cliente no chat.
+REGRAS INEGOCIÁVEIS DE IDENTIDADE E POSTURA:
+1. NUNCA diga que é "assistente do Ricardo", "IA", "Gem" ou "robô". Escreva SEMPRE em 1ª pessoa ("Vou verificar", "Identifiquei aqui", "Me confirma por gentileza"), como se o próprio Ricardo estivesse digitando.
+2. VÁ DIRETO PARA A RESPOSTA OU SOLUÇÃO. Zero apresentações ("Olá, aqui é o Ricardo..."), zero enrolação e zero frases robóticas.
+3. Consulte sempre os Cards Oficiais do SC Smart Cockpit e as imagens/documentos anexados.
+4. NÃO use asteriscos duplos (**) nas respostas porque o chat de atendimento não formata Markdown.
+5. Dica técnica de cadastro/convite: Quando o convite do app chega com o nome do antigo proprietário, oriente a clicar em "Editar perfil", criar uma nova senha e depois acessar "Editar perfil" novamente para alterar os dados. Lembre à administração que ao trocar de morador/proprietário o correto é EXCLUIR o cadastro antigo e adicionar um novo.
+6. Se faltar informação essencial para investigar (condomínio, unidade, e-mail ou print), peça de forma direta e gentil.`;
 
-function obterDocAtivo() {
-    return (janelaPiPAtual && !janelaPiPAtual.closed) ? janelaPiPAtual.document : document;
+// Limpa automaticamente a instrução antiga do cache caso ainda fale "Gem especialista" ou "assistente"
+if (!configGeminiGem.instrucaoGem || /Gem especialista|assistente do Ricardo/i.test(configGeminiGem.instrucaoGem)) {
+    configGeminiGem.instrucaoGem = INSTRUCAO_PROFISSIONAL_RICARDO;
+    localStorage.setItem('sc_gemini_gem_config', JSON.stringify(configGeminiGem));
 }
 
 // Espelha todas as funções do sistema na janela flutuante para que 100% dos botões funcionem lá dentro!
@@ -1811,10 +1813,19 @@ function inicializarBarraCopilotHUD() {
 }
 
 // ==============================================================
-// MOTOR NATIVO DE COLAGEM TOTAL NA IA GEM (ATÉ 10 IMAGENS/ÁUDIOS/PDFS)
+// MOTOR NATIVO DE COLAGEM TOTAL NA IA GEM (SEM DUPLICAR + CONVERSÃO CANVAS P/ IA)
 // ==============================================================
 window.filaMidiasGemHUD = window.filaMidiasGemHUD || [];
 const MAX_MIDIAS_GEM = 10;
+
+// Trava Anti-Duplicação: compara URL e assinatura Base64 para nunca repetir a mesma imagem!
+function jaExisteMidiaNaFila(previewUrl, base64Data) {
+    return window.filaMidiasGemHUD.some(m => {
+        if (previewUrl && m.previewUrl && m.previewUrl === previewUrl) return true;
+        if (base64Data && m.base64Data && m.base64Data.slice(0, 120) === base64Data.slice(0, 120) && m.base64Data.length === base64Data.length) return true;
+        return false;
+    });
+}
 
 function renderizarGaleriaGemNativa() {
     const doc = obterDocAtivo();
@@ -1832,12 +1843,10 @@ function renderizarGaleriaGemNativa() {
 
     window.filaMidiasGemHUD.forEach((m, idx) => {
         const card = doc.createElement('div');
-        // Redução do gap, padding, border-radius e box-shadow
         card.style.cssText = 'position:relative; display:inline-flex; align-items:center; gap:5px; background:#090d1a; border:1px solid #38bdf8; border-radius:6px; padding:3px 6px 3px 3px; box-shadow:0 0 8px rgba(56,189,248,0.15);';
 
         let midiaVisual = '';
         if (m.tipoCurto === 'imagem') {
-            // Imagem reduzida para 32x32
             midiaVisual = `<img src="${m.previewUrl}" style="width:32px; height:32px; object-fit:cover; border-radius:4px; cursor:zoom-in; background:#000;" onclick="abrirLightboxChat('${m.previewUrl}')">`;
         } else if (m.tipoCurto === 'audio') {
             midiaVisual = `<span class="material-icons-round" style="font-size:18px; color:#34d399; padding:2px;">graphic_eq</span>`;
@@ -1865,20 +1874,21 @@ window.removerMidiaGemNativa = function(idx) {
     renderizarGaleriaGemNativa();
 };
 
-async function adicionarArquivoFisicoGem(file) {
-    if (window.filaMidiasGemHUD.length >= MAX_MIDIAS_GEM) {
-        mostrarToast(`⚠️ Limite de ${MAX_MIDIAS_GEM} mídias atingido!`);
-        return;
-    }
+async function adicionarArquivoFisicoGem(file, urlOriginal = '') {
+    if (window.filaMidiasGemHUD.length >= MAX_MIDIAS_GEM) return false;
     const mime = file.type || '';
     const nome = file.name || `Print_${window.filaMidiasGemHUD.length + 1}.jpg`;
 
     if (mime.startsWith('image/')) {
         const dataUrl = await comprimirImagemParaBase64(file, 1400, 0.85);
+        const b64 = dataUrl.split(',')[1];
+        if (jaExisteMidiaNaFila(urlOriginal || dataUrl, b64)) return false;
+
         window.filaMidiasGemHUD.push({
             mimeType: 'image/jpeg',
-            base64Data: dataUrl.split(',')[1],
+            base64Data: b64,
             previewUrl: dataUrl,
+            urlOrigem: urlOriginal,
             nome,
             tipoCurto: 'imagem'
         });
@@ -1898,15 +1908,20 @@ async function adicionarArquivoFisicoGem(file) {
             r.onload = e => res(e.target.result);
             r.readAsDataURL(file);
         });
+        const b64 = dataUrl.split(',')[1];
+        if (jaExisteMidiaNaFila(urlOriginal, b64)) return false;
+
         window.filaMidiasGemHUD.push({
             mimeType: mime || 'application/octet-stream',
-            base64Data: dataUrl.split(',')[1],
+            base64Data: b64,
             previewUrl: '',
+            urlOrigem: urlOriginal,
             nome,
             tipoCurto: mime.includes('pdf') ? 'pdf' : (mime.startsWith('audio/') ? 'audio' : 'arquivo')
         });
     }
     renderizarGaleriaGemNativa();
+    return true;
 }
 
 window.aoEscolherArquivosGemNativo = async function(ev) {
@@ -1916,19 +1931,49 @@ window.aoEscolherArquivosGemNativo = async function(ev) {
     ev.target.value = '';
 };
 
-// Converte qualquer URL de imagem do HTML copiado para aparecer na tela NA HORA (mesmo se o fetch tiver bloqueio CORS!)
+// Tenta extrair Base64 via elemento Image + Canvas para a IA conseguir ler imagens mesmo de URLs externas
+function tentarExtrairBase64ViaCanvas(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                let w = img.naturalWidth || img.width || 800;
+                let h = img.naturalHeight || img.height || 600;
+                const maxD = 1400;
+                if (w > maxD || h > maxD) {
+                    if (w > h) { h = Math.round(h * (maxD / w)); w = maxD; }
+                    else { w = Math.round(w * (maxD / h)); h = maxD; }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                resolve(dataUrl.split(',')[1]);
+            } catch (e) {
+                resolve(null);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
+}
+
 async function capturarUrlMidiaDaConversa(url, tipo, nome) {
     if (window.filaMidiasGemHUD.length >= MAX_MIDIAS_GEM) return false;
     if (!url || url.startsWith('javascript:') || /emoji|twemoji|avatar|favicon|icon/i.test(url)) return false;
+    if (jaExisteMidiaNaFila(url, null) || window.filaMidiasGemHUD.some(m => m.urlOrigem === url)) return false;
 
-    // 1. Se já vier como data:image/...
     if (url.startsWith('data:')) {
         const [hdr, b64] = url.split(',');
         const mime = hdr.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        if (jaExisteMidiaNaFila(url, b64)) return false;
         window.filaMidiasGemHUD.push({
             mimeType: mime,
             base64Data: b64,
             previewUrl: url,
+            urlOrigem: url,
             nome: nome || `Print_${window.filaMidiasGemHUD.length + 1}.jpg`,
             tipoCurto: tipo
         });
@@ -1936,26 +1981,26 @@ async function capturarUrlMidiaDaConversa(url, tipo, nome) {
         return true;
     }
 
-    // 2. Tenta extrair os bytes via Image + Canvas ou Fetch
     try {
         const resp = await fetch(url, { credentials: 'include' }).catch(() => fetch(url));
         if (resp && resp.ok) {
             const blob = await resp.blob();
             if (blob.size > 1200) {
                 const file = new File([blob], nome || `Midia_${window.filaMidiasGemHUD.length + 1}`, { type: blob.type || 'image/jpeg' });
-                await adicionarArquivoFisicoGem(file);
-                return true;
+                return await adicionarArquivoFisicoGem(file, url);
             }
         }
     } catch (e) {}
 
-    // 3. FALLBACK INFALÍVEL DE TELA: Se o servidor do chat bloquear leitura binária (CORS), cola e exibe a imagem diretamente na tela via URL!
     if (tipo === 'imagem') {
+        const b64Canvas = await tentarExtrairBase64ViaCanvas(url);
+        if (jaExisteMidiaNaFila(url, b64Canvas)) return false;
         window.filaMidiasGemHUD.push({
             mimeType: 'image/jpeg',
-            base64Data: null,
+            base64Data: b64Canvas,
             previewUrl: url,
-            nome: nome || `Imagem_Chat_${window.filaMidiasGemHUD.length + 1}`,
+            urlOrigem: url,
+            nome: nome || `Print_${window.filaMidiasGemHUD.length + 1}.jpg`,
             tipoCurto: 'imagem'
         });
         renderizarGaleriaGemNativa();
@@ -1975,56 +2020,49 @@ function conectarColagemTotalGemHUD() {
         if (!cb) return;
         let colouMidia = 0;
 
-        // A) Procura ficheiros diretos no Ctrl+V (quando copias imagem ou ficheiro direto)
-        if (cb.files && cb.files.length > 0) {
-            for (const f of Array.from(cb.files)) {
-                await adicionarArquivoFisicoGem(f);
-                colouMidia++;
-            }
-        } else if (cb.items) {
-            for (const item of Array.from(cb.items)) {
-                if (item.kind === 'file') {
-                    const f = item.getAsFile();
-                    if (f) {
-                        await adicionarArquivoFisicoGem(f);
-                        colouMidia++;
-                    }
-                }
-            }
+        // 1. Captura arquivos diretos no Ctrl+V (apenas de cb.files para não duplicar com cb.items!)
+        const arquivosDiretos = (cb.files && cb.files.length > 0)
+            ? Array.from(cb.files)
+            : Array.from(cb.items || []).filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+
+        for (const f of arquivosDiretos) {
+            const ok = await adicionarArquivoFisicoGem(f);
+            if (ok) colouMidia++;
         }
 
-        // B) Procura imagens, áudios e PDFs dentro do HTML da conversa selecionada!
+        // 2. Se NÃO era apenas um Print Screen isolado, ou se veio HTML de conversa inteira:
         const html = cb.getData('text/html');
-        if (html) {
+        if (html && arquivosDiretos.length === 0) {
             const parser = new DOMParser();
             const docHtml = parser.parseFromString(html, 'text/html');
+            const urlsProcessadasNestePaste = new Set();
 
-            // Imagens (src, data-src ou background-image)
-            const imgs = docHtml.querySelectorAll('img');
-            for (const img of Array.from(imgs)) {
-                const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+            // Imagens
+            for (const img of Array.from(docHtml.querySelectorAll('img'))) {
+                const src = (img.getAttribute('src') || img.getAttribute('data-src') || '').trim();
                 const w = parseInt(img.getAttribute('width') || '500', 10);
-                if (src && w >= 32) {
+                if (src && w >= 32 && !urlsProcessadasNestePaste.has(src)) {
+                    urlsProcessadasNestePaste.add(src);
                     const ok = await capturarUrlMidiaDaConversa(src, 'imagem', img.getAttribute('alt') || 'Print_Conversa.jpg');
                     if (ok) colouMidia++;
                 }
             }
 
             // Áudios e vídeos
-            const audios = docHtml.querySelectorAll('audio, video, source');
-            for (const au of Array.from(audios)) {
-                const src = au.getAttribute('src') || '';
-                if (src) {
+            for (const au of Array.from(docHtml.querySelectorAll('audio, video, source'))) {
+                const src = (au.getAttribute('src') || '').trim();
+                if (src && !urlsProcessadasNestePaste.has(src)) {
+                    urlsProcessadasNestePaste.add(src);
                     const ok = await capturarUrlMidiaDaConversa(src, 'audio', 'Audio_Conversa.ogg');
                     if (ok) colouMidia++;
                 }
             }
 
-            // Links de ficheiros/PDFs
-            const links = docHtml.querySelectorAll('a[href]');
-            for (const a of Array.from(links)) {
-                const href = a.getAttribute('href') || '';
-                if (/\.(pdf|png|jpe?g|webp|mp3|ogg|wav|csv|ofx)(\?.*)?$/i.test(href)) {
+            // Links de PDFs/Arquivos (Ignora links que já apontam para a mesma imagem acima!)
+            for (const a of Array.from(docHtml.querySelectorAll('a[href]'))) {
+                const href = (a.getAttribute('href') || '').trim();
+                if (href && !urlsProcessadasNestePaste.has(href) && /\.(pdf|mp3|ogg|wav|csv|ofx)(\?.*)?$/i.test(href)) {
+                    urlsProcessadasNestePaste.add(href);
                     const tipo = href.toLowerCase().includes('.pdf') ? 'pdf' : 'arquivo';
                     const ok = await capturarUrlMidiaDaConversa(href, tipo, a.innerText.trim() || 'Anexo_Chat');
                     if (ok) colouMidia++;
@@ -2033,7 +2071,7 @@ function conectarColagemTotalGemHUD() {
         }
 
         if (colouMidia > 0) {
-            mostrarToast(`📸 +${colouMidia} mídia(s) colada(s) diretamente na tela!`);
+            mostrarToast(`📸 +${colouMidia} mídia(s) única(s) colada(s) na tela!`);
         }
     });
 }
@@ -4754,335 +4792,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 // ==============================================================
-// 11. UPGRADE MULTIMODAL + GEMINI 3.5 FLASH LITE (RACIOCÍNIO MÍNIMO)
 // ==============================================================
-let filaMidiasGemHUD = [];
-let modeloRapidoMemorizado = null;
-const LIMITE_ANEXOS_GEM = 10; // Limite aumentado para 10 mídias!
+// 11. MOTOR GEMINI CALIBRADO: 1ª PESSOA + LEITURA TOTAL + TONS PRECISOS
+// ==============================================================
 
-async function processarArquivoParaGemHUD(file) {
-    if (filaMidiasGemHUD.length >= LIMITE_ANEXOS_GEM) {
-        mostrarToast(`⚠️ Limite máximo de ${LIMITE_ANEXOS_GEM} arquivos na Gem atingido!`);
-        return;
-    }
-
-    const mime = file.type || '';
-    const nome = file.name || `Anexo_${Date.now()}`;
-
-    if (mime.startsWith('image/')) {
-        const dataUrl = await comprimirImagemParaBase64(file, 1400, 0.85);
-        const base64Limpo = dataUrl.split(',')[1];
-        filaMidiasGemHUD.push({
-            mimeType: 'image/jpeg',
-            base64Data: base64Limpo,
-            previewUrl: dataUrl,
-            nome: nome,
-            tipoCurto: 'imagem'
-        });
-        renderizarFilaMidiasGemHUD();
-        return;
-    }
-
-    if (mime === 'application/pdf' || mime.startsWith('audio/') || mime.startsWith('video/')) {
-        const dataUrl = await new Promise((res) => {
-            const reader = new FileReader();
-            reader.onload = (e) => res(e.target.result);
-            reader.readAsDataURL(file);
-        });
-        const base64Limpo = dataUrl.split(',')[1];
-        filaMidiasGemHUD.push({
-            mimeType: mime,
-            base64Data: base64Limpo,
-            previewUrl: '',
-            nome: nome,
-            tipoCurto: mime === 'application/pdf' ? 'pdf' : 'audio'
-        });
-        renderizarFilaMidiasGemHUD();
-        return;
-    }
-
-    if (mime.startsWith('text/') || /\.(csv|txt|json|xml|log|ofx)$/i.test(nome)) {
-        const textoLido = await file.text();
-        filaMidiasGemHUD.push({
-            mimeType: 'text/plain',
-            base64Data: null,
-            previewUrl: '',
-            nome: nome,
-            tipoCurto: 'texto',
-            textoExtraido: textoLido.slice(0, 30000)
-        });
-        renderizarFilaMidiasGemHUD();
-        return;
-    }
-
-    mostrarToast("⚠️ Formato não suportado. Use Print, PDF, Áudio ou CSV/TXT.");
-}
-
-// NOVO: Baixa imagens, áudios e PDFs automaticamente a partir dos links da conversa copiada!
-async function baixarMidiaDeUrlParaGemHUD(url, tipoSugerido = 'imagem', nomeSugerido = '') {
-    if (filaMidiasGemHUD.length >= LIMITE_ANEXOS_GEM) return false;
-    if (!url || url.startsWith('javascript:') || url.startsWith('mailto:')) return false;
-
-    // Ignora emojis, avatares minúsculos ou ícones do próprio sistema
-    if (/emoji|avatar|icon|favicon|twemoji|1f6|svg/i.test(url)) return false;
-
-    try {
-        if (url.startsWith('data:')) {
-            const [header, b64] = url.split(',');
-            const mime = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
-            if (!b64) return false;
-            filaMidiasGemHUD.push({
-                mimeType: mime,
-                base64Data: b64,
-                previewUrl: mime.startsWith('image/') ? url : '',
-                nome: nomeSugerido || `Midia_${filaMidiasGemHUD.length + 1}`,
-                tipoCurto: mime.startsWith('image/') ? 'imagem' : (mime.includes('pdf') ? 'pdf' : 'audio')
-            });
-            renderizarFilaMidiasGemHUD();
-            return true;
-        }
-
-        // Tenta buscar os bytes reais da imagem/áudio/arquivo copiado da conversa
-        const resp = await fetch(url, { mode: 'cors', credentials: 'omit' }).catch(() => null);
-        if (resp && resp.ok) {
-            const blob = await resp.blob();
-            if (blob.size > 0 && blob.size < 1500 && blob.type.startsWith('image/')) {
-                return false; // Ignora ícones de interface menores que 1.5KB
-            }
-            const ext = blob.type.split('/')[1]?.split(';')[0] || 'bin';
-            const nomeFinal = nomeSugerido || `Midia_Chat_${filaMidiasGemHUD.length + 1}.${ext}`;
-            const file = new File([blob], nomeFinal, { type: blob.type || 'image/jpeg' });
-            await processarArquivoParaGemHUD(file);
-            return true;
-        }
-    } catch (e) {
-        console.warn("Bloqueio CORS na mídia da conversa:", url);
-    }
-    return false;
-}
-
-// Extrai todas as mídias embutidas quando você seleciona a conversa inteira e dá Ctrl+C
-async function extrairMidiasDoHtmlDaConversa(htmlColado) {
-    if (!htmlColado) return 0;
-    let qtdCapturada = 0;
-
-    try {
-        const parser = new DOMParser();
-        const docHtml = parser.parseFromString(htmlColado, 'text/html');
-        const tarefas = [];
-
-        // 1. Imagens no meio da conversa (<img src="...">)
-        docHtml.querySelectorAll('img').forEach(img => {
-            const src = img.getAttribute('src') || img.dataset?.src || '';
-            const w = parseInt(img.getAttribute('width') || '999', 10);
-            const h = parseInt(img.getAttribute('height') || '999', 10);
-            const classe = (img.className || '').toLowerCase();
-
-            if (w < 36 || h < 36 || classe.includes('emoji') || classe.includes('avatar')) return;
-            if (src) tarefas.push(baixarMidiaDeUrlParaGemHUD(src, 'imagem', img.getAttribute('alt') || 'Print_Cliente.jpg'));
-        });
-
-        // 2. Áudios e Vídeos (<audio>, <video>, <source>)
-        docHtml.querySelectorAll('audio, video, audio source, video source').forEach(midia => {
-            const src = midia.getAttribute('src') || '';
-            if (src) tarefas.push(baixarMidiaDeUrlParaGemHUD(src, 'audio', 'Audio_Cliente.ogg'));
-        });
-
-        // 3. Links diretos de Arquivos, PDFs, Imagens ou Áudios na conversa (<a href="...">)
-        docHtml.querySelectorAll('a[href]').forEach(a => {
-            const href = a.getAttribute('href') || '';
-            if (/\.(png|jpe?g|webp|gif|pdf|mp3|ogg|wav|m4a|opus|csv|txt|ofx)(\?.*)?$/i.test(href)) {
-                tarefas.push(baixarMidiaDeUrlParaGemHUD(href, 'arquivo', a.innerText.trim() || 'Arquivo_Chat'));
-            }
-        });
-
-        const resultados = await Promise.all(tarefas.slice(0, LIMITE_ANEXOS_GEM - filaMidiasGemHUD.length));
-        qtdCapturada = resultados.filter(Boolean).length;
-    } catch (err) {
-        console.error("Erro ao varrer HTML da conversa:", err);
-    }
-
-    return qtdCapturada;
-}
-
-function renderizarFilaMidiasGemHUD() {
-    const doc = obterDocAtivo();
-    let container = doc.getElementById('gem-hud-attachments-bar');
-    const inputArea = doc.getElementById('gemini-hud-input');
-    if (!inputArea) return;
-
-    if (!container) {
-        container = doc.createElement('div');
-        container.id = 'gem-hud-attachments-bar';
-        container.style.cssText = 'display: none; gap: 6px; flex-wrap: wrap; align-items: center; padding: 6px 8px; background: rgba(2, 4, 12, 0.85); border: 1px dashed rgba(56, 189, 248, 0.45); border-radius: 8px;';
-        inputArea.parentNode.insertBefore(container, inputArea.nextSibling);
-    }
-
-    if (filaMidiasGemHUD.length === 0) {
-        container.style.display = 'none';
-        container.innerHTML = '';
-        return;
-    }
-
-    container.style.display = 'flex';
-    container.innerHTML = `<span style="font-size:9.5px; font-weight:800; color:#38bdf8; margin-right:4px;">📎 MÍDIAS NA TELA (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM}):</span>`;
-
-    filaMidiasGemHUD.forEach((item, idx) => {
-        const chip = doc.createElement('div');
-        chip.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(192, 132, 252, 0.5); padding: 4px 8px; border-radius: 7px; font-size: 10px; color: #f8fafc;';
-
-        let iconePreview = '';
-        if (item.tipoCurto === 'imagem') {
-            iconePreview = `<img src="${item.previewUrl}" style="width: 38px; height: 38px; object-fit: cover; border-radius: 5px; border: 1px solid #38bdf8; cursor: zoom-in;" onclick="abrirLightboxChat('${item.previewUrl}')" title="Clique para ampliar a imagem na tela">`;
-        } else if (item.tipoCurto === 'pdf') {
-            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#f87171;">picture_as_pdf</span>`;
-        } else if (item.tipoCurto === 'audio') {
-            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#34d399;">graphic_eq</span>`;
-        } else {
-            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#60a5fa;">description</span>`;
-        }
-
-        const nomeCurto = item.nome.length > 16 ? item.nome.slice(0, 14) + '...' : item.nome;
-        chip.innerHTML = `
-            ${iconePreview}
-            <span style="font-weight:600;">${nomeCurto}</span>
-            <button type="button" onclick="removerMidiaGemHUD(${idx})" style="background:transparent; border:none; color:#f87171; cursor:pointer; font-weight:900; font-size:12px; margin-left:2px;">✕</button>
-        `;
-        container.appendChild(chip);
-    });
-
-    const btnLimparTodos = doc.createElement('button');
-    btnLimparTodos.type = 'button';
-    btnLimparTodos.className = 'btn-reset-mini';
-    btnLimparTodos.style.cssText = 'margin-left: auto; font-size: 9px; padding: 2px 6px; color: #fca5a5;';
-    btnLimparTodos.innerText = 'Limpar Tudo';
-    btnLimparTodos.onclick = () => {
-        filaMidiasGemHUD = [];
-        renderizarFilaMidiasGemHUD();
-    };
-    container.appendChild(btnLimparTodos);
-}
-
-window.removerMidiaGemHUD = function(idx) {
-    filaMidiasGemHUD.splice(idx, 1);
-    renderizarFilaMidiasGemHUD();
-};
-
-function turbinarInterfaceMultimodalGem() {
-    const doc = obterDocAtivo();
-
-    doc.querySelectorAll('button[onclick*="hud-notes-drawer"]').forEach(b => b.remove());
-    const notesDrawer = doc.getElementById('hud-notes-drawer');
-    if (notesDrawer) notesDrawer.remove();
-
-    const inputGem = doc.getElementById('gemini-hud-input');
-    if (!inputGem || inputGem.dataset.multimodalReady === 'true') return;
-    inputGem.dataset.multimodalReady = 'true';
-
-    inputGem.placeholder = "Cole a conversa inteira (Texto + Imagens + Áudio + PDF) ou dê Ctrl+V em até 10 prints...";
-
-    let fileInput = doc.getElementById('gem-hud-file-input');
-    if (!fileInput) {
-        fileInput = doc.createElement('input');
-        fileInput.type = 'file';
-        fileInput.id = 'gem-hud-file-input';
-        fileInput.multiple = true;
-        fileInput.accept = 'image/*,application/pdf,audio/*,video/*,.csv,.txt,.ofx';
-        fileInput.style.display = 'none';
-        fileInput.onchange = async (ev) => {
-            for (const f of Array.from(ev.target.files)) {
-                await processarArquivoParaGemHUD(f);
-            }
-            mostrarToast(`📎 ${ev.target.files.length} arquivo(s) anexado(s) na Gem!`);
-            ev.target.value = '';
-        };
-        inputGem.parentNode.appendChild(fileInput);
-    }
-
-    const barraBotoes = inputGem.nextElementSibling;
-    if (barraBotoes) {
-        const btnLixeira = barraBotoes.lastElementChild;
-
-        const sep = doc.createElement('div');
-        sep.style.cssText = 'width: 1px; background: rgba(255,255,255,0.12); margin: 2px 3px; align-self: stretch;';
-
-        const btnAnexar = doc.createElement('button');
-        btnAnexar.type = 'button';
-        btnAnexar.className = 'btn-gem-media-utility';
-        btnAnexar.setAttribute('data-tip', 'Anexar até 10 Prints, PDFs, Áudios ou CSV (ou dê Ctrl+V direto na caixa!)');
-        btnAnexar.innerHTML = `<span class="material-icons-round" style="font-size:13px; color:#38bdf8;">attach_file</span> <span>Mídia/PDF</span>`;
-        btnAnexar.onclick = () => doc.getElementById('gem-hud-file-input')?.click();
-
-        const btnRaioX = doc.createElement('button');
-        btnRaioX.type = 'button';
-        btnRaioX.className = 'btn-gem-media-utility scan-mode';
-        btnRaioX.setAttribute('data-tip', 'Lê o erro na imagem/PDF/áudio, extrai dados e já monta a resposta!');
-        btnRaioX.innerHTML = `<span class="material-icons-round" style="font-size:13px; color:#e879f9;">center_focus_strong</span> <span>Ler Print</span>`;
-        btnRaioX.onclick = () => executarGemNoHUD('raiox');
-
-        barraBotoes.insertBefore(sep, btnLixeira);
-        barraBotoes.insertBefore(btnAnexar, btnLixeira);
-        barraBotoes.insertBefore(btnRaioX, btnLixeira);
-    }
-
-    // INTERCEPTADOR INTELIGENTE DE CTRL+V NA IA GEM (TEXTO + IMAGENS + ÁUDIO + ARQUIVOS JUNTOS!)
-    inputGem.addEventListener('paste', async (e) => {
-        const clipboard = e.clipboardData;
-        if (!clipboard) return;
-        let qtdArquivosDiretos = 0;
-
-        // 1. Captura arquivos binários diretos no Ctrl+V (Print Screen, Copiar Imagem ou arquivos copiados de pastas)
-        if (clipboard.items) {
-            for (const item of Array.from(clipboard.items)) {
-                if (item.kind === 'file') {
-                    const file = item.getAsFile();
-                    if (file) {
-                        qtdArquivosDiretos++;
-                        await processarArquivoParaGemHUD(file);
-                    }
-                }
-            }
-        }
-
-        // 2. Quando você copia uma conversa inteira (Texto + Imagem + Áudio + PDF selecionados juntos):
-        const htmlColado = clipboard.getData('text/html');
-        let qtdExtraidaDoHtml = 0;
-        if (htmlColado) {
-            qtdExtraidaDoHtml = await extrairMidiasDoHtmlDaConversa(htmlColado);
-        }
-
-        // 3. Verifica se o texto da conversa tem a palavra "imagem" solta indicando print no chat
-        setTimeout(() => {
-            salvarTextoRascunhoGem(inputGem.value);
-            if (qtdArquivosDiretos > 0 || qtdExtraidaDoHtml > 0) {
-                mostrarToast(`🖼️ ${qtdArquivosDiretos + qtdExtraidaDoHtml} mídia(s) colada(s) diretamente na tela (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM})!`);
-            } else if (/\bimagem\b/i.test(inputGem.value) && filaMidiasGemHUD.length === 0) {
-                // Caso o site do chat bloqueie o link da imagem por segurança (blob privado), avisa na hora:
-                mostrarToast("💡 Texto colado! O chat bloqueou o link da foto: clique com botão direito na foto lá no chat ➔ 'Copiar imagem' e dê Ctrl+V aqui!");
-            }
-        }, 80);
-    });
-
-    inputGem.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        inputGem.style.borderColor = '#38bdf8';
-    });
-    inputGem.addEventListener('dragleave', () => {
-        inputGem.style.borderColor = 'rgba(192, 132, 252, 0.45)';
-    });
-    inputGem.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        inputGem.style.borderColor = 'rgba(192, 132, 252, 0.45)';
-        if (e.dataTransfer?.files?.length) {
-            for (const f of Array.from(e.dataTransfer.files)) {
-                await processarArquivoParaGemHUD(f);
-            }
-            mostrarToast(`📎 ${e.dataTransfer.files.length} arquivo(s) anexado(s) (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM})!`);
-        }
-    });
-}
-
-// Relógio instantâneo do Planetário (já presente no HTML sem piscar!)
+// Relógio instantâneo do Planetário
 function iniciarRelogioPlanetario() {
     const atualizarRelogioEstelar = () => {
         const el = document.getElementById('obs-live-clock');
@@ -5095,28 +4809,22 @@ function iniciarRelogioPlanetario() {
 }
 iniciarRelogioPlanetario();
 
-const _oldInicializarHUD = inicializarBarraCopilotHUD;
-inicializarBarraCopilotHUD = function() {
-    _oldInicializarHUD();
-    turbinarInterfaceMultimodalGem();
-    renderizarFilaMidiasGemHUD();
-};
-
+// Garante que o botão Limpar (lixeira) limpe tanto o texto quanto as mídias da tela
 const _oldLimparCaixaGem = limparCaixaGemHUD;
 limparCaixaGemHUD = function() {
-    filaMidiasGemHUD = [];
-    renderizarFilaMidiasGemHUD();
+    window.filaMidiasGemHUD = [];
+    renderizarGaleriaGemNativa();
     _oldLimparCaixaGem();
 };
 
-// 1. FILTRO ULTRA-LEVE: Envia apenas os 5 cards mais certeiros (resposta 5x mais rápida!)
+// 1. CÉREBRO COMPLETO E PRECISO: Prioriza os Cards mais relevantes para a dúvida + Anotações Fixadas do Diário!
 compilarCerebroCompletoCockpit = function(textoPergunta = "") {
     const cardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA');
     const palavrasChave = textoPergunta
         .toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .split(/\W+/)
-        .filter(p => p.length > 2);
+        .filter(p => p.length > 2 && !['para', 'como', 'que', 'uma', 'com', 'por', 'nao', 'está', 'esta', 'cliente', 'visitante'].includes(p));
 
     const cardsPontuados = cardsAtendimento.map(card => {
         const conteudoCard = `${card.categoria} ${card.titulo} ${card.atalho || ''} ${card.texto}`
@@ -5125,22 +4833,36 @@ compilarCerebroCompletoCockpit = function(textoPergunta = "") {
 
         let pontos = card.favorito ? 2 : 0;
         palavrasChave.forEach(p => {
-            if (conteudoCard.includes(p)) pontos += 5;
+            if (conteudoCard.includes(p)) pontos += 6;
         });
         return { card, pontos };
     });
 
     cardsPontuados.sort((a, b) => b.pontos - a.pontos);
 
-    const topCards = cardsPontuados.slice(0, 5).map((item, idx) => {
+    // Envia os 18 cards mais certeiros (ou todos se a base for pequena) para precisão cirúrgica
+    const selecionados = cardsPontuados.slice(0, 18).map((item, idx) => {
         const s = item.card;
         return `${idx + 1}. [${s.categoria} | ${s.titulo}]: ${processarTexto(s.texto, false)}`;
     }).join('\n\n');
 
-    return `\n\n=== CARDS DE REFERÊNCIA DO SUPORTE ===\n${topCards}`;
+    let notasFixadasDiario = "";
+    if (typeof listaChatPessoal !== 'undefined' && Array.isArray(listaChatPessoal)) {
+        const fixadas = listaChatPessoal.filter(m => m.fixado && m.texto);
+        if (fixadas.length > 0) {
+            notasFixadasDiario = `\n\n=== ANOTAÇÕES FIXADAS NO DIÁRIO DO RICARDO ===\n` +
+                fixadas.map(f => {
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = f.texto;
+                    return `• ${tmp.innerText || tmp.textContent}`;
+                }).join('\n');
+        }
+    }
+
+    return `\n\n=== BASE OFICIAL DE PROCEDIMENTOS DO SUPORTE (USE EXATAMENTE ESTES CAMINHOS DE MENU QUANDO APLICÁVEL) ===\n${selecionados}${notasFixadasDiario}`;
 };
 
-// 2. DESCOBERTA AUTOMÁTICA DO MODELO MAIS RÁPIDO DA SUA CONTA GOOGLE
+// 2. DESCOBERTA AUTOMÁTICA DO MODELO MAIS RÁPIDO E INTELIGENTE DA SUA CONTA GOOGLE
 let listaModelosReaisCache = null;
 
 async function obterModelosReaisDaChave(apiKey) {
@@ -5156,12 +4878,11 @@ async function obterModelosReaisDaChave(apiKey) {
                 .map(m => m.name.replace('models/', ''))
                 .filter(nome => nome.includes('gemini') && !nome.includes('2.0') && !nome.includes('1.5') && !nome.includes('vision') && !nome.includes('tts') && !nome.includes('image'));
 
-            // Coloca qualquer versão "lite" primeiro, depois "3.5-flash", depois "3.8-flash"
             disponiveis.sort((a, b) => {
                 const peso = (n) => {
-                    if (n.includes('flash-lite')) return 1;
-                    if (n.includes('3.5-flash')) return 2;
-                    if (n.includes('3.8-flash')) return 3;
+                    if (n.includes('3.5-flash') && !n.includes('lite')) return 1;
+                    if (n.includes('3.8-flash')) return 2;
+                    if (n.includes('flash-lite')) return 3;
                     if (n.includes('flash')) return 4;
                     return 9;
                 };
@@ -5174,10 +4895,10 @@ async function obterModelosReaisDaChave(apiKey) {
             }
         }
     } catch (e) {}
-    return ['gemini-3.8-flash'];
+    return ['gemini-2.5-flash'];
 }
 
-// 3. CHAMADA DIRETA SEM TENTATIVAS CEGAS
+// 3. CHAMADA MULTIMODAL COMPLETA (TEXTO + IMAGENS/PDFS/ÁUDIOS + CONTEXTO)
 chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true) {
     if (!configGeminiGem.apiKey) {
         toggleGavetaHUD('hud-gemini-drawer');
@@ -5193,22 +4914,35 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
     const saudacao = obterSaudacaoHorario();
 
     const cerebroOtimizado = usarContextoScripts ? compilarCerebroCompletoCockpit(promptUsuario) : "";
-    const contextoVariaveis = `\n\n=== CONTEXTO ATUAL ===\nSaudação: "${saudacao}" | Cliente: "${nomeCliente || 'Não informado'}" | Condomínio: "${nomeCond || 'Não informado'}"`;
+    const contextoVariaveis = `\n\n=== DADOS DO ATENDIMENTO ATUAL ===\nSaudação do horário: "${saudacao}" | Nome do Cliente: "${nomeCliente || 'Use o nome que aparecer no histórico da conversa ou não cite nome'}" | Condomínio: "${nomeCond || 'Verifique se consta no texto/imagem'}"`;
 
     const userParts = [];
     let textosDeArquivos = "";
-    filaMidiasGemHUD.forEach(item => {
+
+    for (const item of window.filaMidiasGemHUD) {
         if (item.tipoCurto === 'texto' && item.textoExtraido) {
-            textosDeArquivos += `\n\n--- ARQUIVO ANEXADO (${item.nome}) ---\n${item.textoExtraido}`;
+            textosDeArquivos += `\n\n--- CONTEÚDO DO ARQUIVO ANEXADO (${item.nome}) ---\n${item.textoExtraido}`;
         } else if (item.base64Data) {
             userParts.push({
                 inlineData: {
-                    mimeType: item.mimeType,
+                    mimeType: item.mimeType || 'image/jpeg',
                     data: item.base64Data
                 }
             });
+        } else if (item.previewUrl && item.tipoCurto === 'imagem') {
+            // Se a imagem estava apenas na tela, tenta converter via Canvas antes de enviar
+            const b64Recuperado = await tentarExtrairBase64ViaCanvas(item.previewUrl);
+            if (b64Recuperado) {
+                item.base64Data = b64Recuperado;
+                userParts.push({
+                    inlineData: {
+                        mimeType: 'image/jpeg',
+                        data: b64Recuperado
+                    }
+                });
+            }
         }
-    });
+    }
 
     userParts.push({ text: promptUsuario + textosDeArquivos });
 
@@ -5217,20 +4951,19 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
 
     for (const mod of modelosParaTentar) {
         const controller = new AbortController();
-        // Limite seguro de 25 segundos para não cortar a resposta na metade
-        const timerTimeout = setTimeout(() => controller.abort(), 25000);
+        const timerTimeout = setTimeout(() => controller.abort(), 28000);
 
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${mod}:generateContent?key=${encodeURIComponent(configGeminiGem.apiKey)}`;
 
             const payload = {
                 systemInstruction: {
-                    parts: [{ text: configGeminiGem.instrucaoGem + contextoVariaveis + cerebroOtimizado }]
+                    parts: [{ text: INSTRUCAO_PROFISSIONAL_RICARDO + "\n" + (configGeminiGem.instrucaoGem || "") + contextoVariaveis + cerebroOtimizado }]
                 },
                 contents: [{ role: "user", parts: userParts }],
                 generationConfig: {
-                    temperature: 0.25,
-                    maxOutputTokens: 350
+                    temperature: 0.2,
+                    maxOutputTokens: 700
                 }
             };
 
@@ -5252,7 +4985,6 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
                     .join('')?.trim();
 
                 if (textoGerado) {
-                    // Coloca o modelo que funcionou no topo da lista para a próxima vez ser imediata!
                     listaModelosReaisCache = [mod, ...modelosParaTentar.filter(m => m !== mod)];
                     return textoGerado;
                 }
@@ -5261,7 +4993,7 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
         } catch (err) {
             clearTimeout(timerTimeout);
             ultimoErro = err.name === 'AbortError'
-                ? `O servidor do Google (${mod}) demorou mais de 25s para responder.`
+                ? `O servidor (${mod}) demorou mais de 28s para responder.`
                 : err.message;
         }
     }
@@ -5269,7 +5001,7 @@ chamarMotorGeminiAPI = async function(promptUsuario, usarContextoScripts = true)
     throw new Error(`Parou: ${ultimoErro} — Clique em Responder novamente.`);
 };
 
-// 4. EXECUÇÃO COM CRONÔMETRO AO VIVO NA TELA (1s, 2s, 3s...) + ANTI-PAUSA
+// 4. EXECUÇÃO CALIBRADA COM OS 5 TONS E LEITURA INTEGRAL DA CONVERSA + MÍDIAS
 executarGemNoHUD = async function(modo) {
     const rodarTarefaSemPausar = async () => {
         const doc = obterDocAtivo();
@@ -5277,53 +5009,59 @@ executarGemNoHUD = async function(modo) {
         const outBox = doc.getElementById('gemini-hud-resultado');
         let texto = input?.value.trim() || "";
 
-        if (!texto && filaMidiasGemHUD.length === 0) {
-            return mostrarToast("Cole um print/PDF ou digite a mensagem do cliente primeiro!");
+        if (!texto && window.filaMidiasGemHUD.length === 0) {
+            return mostrarToast("Cole a conversa, print ou digite sua mensagem primeiro!");
         }
 
-        if (!texto && filaMidiasGemHUD.length > 0) {
-            texto = "Analise atentamente a(s) imagem(ns) ou documento(s) enviado(s) pelo cliente.";
-            if (input) input.value = "[Mídia/Documento em análise...]";
+        if (!texto && window.filaMidiasGemHUD.length > 0) {
+            texto = "Analise atentamente a(s) imagem(ns)/documento(s) anexado(s) e dê a resposta pronta para o cliente.";
         }
 
         let segundos = 0;
         outBox.style.display = 'block';
-        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em id="gem-timer-txt">Gerando resposta... (0s)</em></div>`;
+        outBox.innerHTML = `<div class="gem-ans-body">⚡ <em id="gem-timer-txt">Lendo conversa${window.filaMidiasGemHUD.length ? ` + ${window.filaMidiasGemHUD.length} mídia(s)` : ''} e gerando resposta... (0s)</em></div>`;
 
         const relogioEspera = setInterval(() => {
             segundos++;
             const elTimer = doc.getElementById('gem-timer-txt');
-            if (elTimer) elTimer.innerText = `Gerando resposta... (${segundos}s)`;
+            if (elTimer) elTimer.innerText = `Lendo tudo e gerando resposta... (${segundos}s)`;
         }, 1000);
 
         const instrucoesTom = {
-            padrao: "Use o tom padrão das respostas rápidas do suporte: profissional, prestativo e claro.",
-            curto: "SEJA ULTRA-DIRETO E CURTO (2 a 4 linhas no máximo). Sem floreios.",
-            firme: "Postura de especialista sênior: firme, didática, definitiva, sem bajulação mas explicada passo a passo.",
-            amigavel: "Seja super amigável, caloroso, humano, leve e prestativo.",
-            passos: "Estruture a explicação em um passo a passo numerado (1., 2., 3.) curto e direto."
+            curto: "TOM CURTO E DIRETO: Vá direto ao ponto em 1 a 3 frases curtas. Sem introduções desnecessárias.",
+            padrao: "TOM PADRÃO PROFISSIONAL: Equilibrado, claro, objetivo e prestativo, como um analista de suporte experiente.",
+            firme: "TOM CLIENTE DIFÍCIL (FIRME E SÊNIOR): Postura firme, segura, técnica e definitiva. Zero submissão, zero pedir desculpas, mas explicando o motivo técnico de forma incontestável.",
+            amigavel: "TOM AMIGÁVEL E HUMANO: Cordial, leve, prestativo e acolhedor, mas mantendo o foco total na solução rápida.",
+            passos: "TOM PASSO A PASSO: Estruture a orientação em passos numerados curtos e fáceis de seguir (1., 2., 3.)."
         };
 
+        const regrasInviolaveisSaida = `
+REGRAS DE OURO PARA A SUA RESPOSTA:
+- Escreva em 1ª pessoa como o próprio atendente falando diretamente com o cliente.
+- PROIBIDO dizer "Sou o assistente do Ricardo", "Aqui é o Ricardo" ou fazer qualquer autoapresentação.
+- Ignore linhas de sistema do log copiado (como "Rascunho do assistente (modo sombra)", "Nota privada", horários isolados) e foque 100% na última dúvida/problema real do cliente e nas imagens/anexos enviados.
+- Entregue APENAS o texto final exato pronto para dar Ctrl+V no chat do cliente, sem aspas em volta e sem asteriscos (**).`;
+
         try {
-            const diretrizTom = instrucoesTom[tomAtivoGem] || instrucoesTom.curto;
+            const diretrizTom = instrucoesTom[tomAtivoGem] || instrucoesTom.padrao;
             let comando = "";
             let precisaDosCards = true;
 
             if (modo === 'raiox') {
-                comando = `Analise a mídia/documento anexado e o relato: "${texto}".
-Faça 2 entregas separadas por "---":
-PARTE 1 (DIAGNÓSTICO RÁPIDO): O que aparece no print/documento e dados extraídos.
-PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no chat (sem asteriscos **).`;
+                comando = `Analise minuciosamente a(s) imagem(ns)/documento(s) anexado(s) junto com o histórico: "${texto}".
+Entregue em 2 blocos separados por "---":
+🔍 DIAGNÓSTICO DO PRINT/ARQUIVO: O que aparece na imagem (erro, tela, dados extraídos) e a causa técnica.
+💬 RESPOSTA PRONTA PARA O CLIENTE: A mensagem direta em 1ª pessoa pronta para colar no chat (seguindo o ${diretrizTom}, sem se apresentar e sem asteriscos **).`;
             } else if (modo === 'desabafo') {
-                precisaDosCards = false; // Não envia cards para responder ainda mais rápido!
-                comando = `O atendente Ricardo digitou este desabafo sobre um cliente difícil:\n"${texto}"\n\nTransforme em uma resposta CURTA, DIRETA E FIRME (1 a 2 frases) para enviar no chat. Sem pedir desculpas e sem asteriscos (**):`;
+                precisaDosCards = true;
+                comando = `Contexto/desabafo digitado pelo atendente sobre o caso:\n"${texto}"\n\nTransforme isso em uma resposta CURTA, DIRETA, FIRME E PROFISSIONAL (1 a 3 frases) escrita em 1ª pessoa diretamente para o cliente. Dê o recado técnico na lata, sem pedir desculpas, sem rodeios e sem se apresentar.${regrasInviolaveisSaida}`;
             } else if (modo === 'lapidar') {
-                comando = `Rascunho/contexto do Ricardo:\n"${texto}"\n\nTransforme em uma resposta de ESPECIALISTA SÊNIOR: firme, clara, didática e sem asteriscos (**):`;
+                comando = `Rascunho ou explicação para lapidar:\n"${texto}"\n\nReescreva e lapide em 1ª pessoa com postura de Especialista Sênior (${diretrizTom}): clara, didática, direta ao ponto e consultando os Cards se precisar citar o caminho exato do menu.${regrasInviolaveisSaida}`;
             } else if (modo === 'triagem') {
-                precisaDosCards = false; // Não envia cards para responder na hora!
-                comando = `O cliente enviou:\n"${texto}"\n\nFaça uma pergunta de triagem de 1 linha pedindo apenas o que falta (e-mail, condomínio/unidade ou print). Entregue APENAS a frase pronta:`;
+                precisaDosCards = false;
+                comando = `Histórico recebido do cliente:\n"${texto}"\n\nAnalise o que o cliente já informou no texto/imagem acima e escreva APENAS 1 frase curta e direta em 1ª pessoa pedindo somente o dado que ainda falta para investigar no sistema (ex: condomínio, unidade, e-mail ou print da tela).${regrasInviolaveisSaida}`;
             } else {
-                comando = `Mensagem do cliente:\n"${texto}"\n\nResponda de forma curta e direta seguindo o tom (${diretrizTom}). Entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
+                comando = `Histórico da conversa / mensagem do cliente:\n"${texto}"\n\n${ window.filaMidiasGemHUD.length > 0 ? `Há ${window.filaMidiasGemHUD.length} mídia(s)/print(s) anexado(s) — leia tudo o que está escrito na imagem para responder com precisão.` : '' }\n\nSiga rigorosamente o ${diretrizTom}.${regrasInviolaveisSaida}`;
             }
 
             const respostaBruta = await chamarMotorGeminiAPI(comando, precisaDosCards);
@@ -5340,7 +5078,6 @@ PARTE 2 (RESPOSTA PRONTA PARA O CLIENTE): Escreva a resposta final para colar no
 
             outBox.innerHTML = `<div class="gem-ans-header"><strong style="color:var(--neon-green); font-size:10px;">⚡ PRONTO EM ${segundos}s E COPIADO PRO CTRL+V!</strong><div style="display:flex; gap:4px;"><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-blue); color:#7dd3fc;" onclick="copiarTextoUniversal(ultimaRespostaGeradaGem); mostrarToast('✓ Copiado!')">Copiar</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:var(--neon-green); color:#6ee7b7;" onclick="transformarRespostaGemEmCard()">+ Virar Card</button><button type="button" class="btn-hud-action" style="padding:2px 6px; border-color:#f472b6; color:#f9a8d4;" onclick="salvarRespostaGemNoDiario()">Salvar Diário</button></div></div><div class="gem-ans-body">${htmlVisual}</div>`;
 
-            if (input && input.value === "[Mídia/Documento em análise...]") input.value = "";
             mostrarToast(`⚡ Resposta pronta em ${segundos}s e copiada!`);
         } catch (err) {
             clearInterval(relogioEspera);
