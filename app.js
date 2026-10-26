@@ -4517,10 +4517,11 @@ window.addEventListener('DOMContentLoaded', () => {
 // ==============================================================
 let filaMidiasGemHUD = [];
 let modeloRapidoMemorizado = null;
+const LIMITE_ANEXOS_GEM = 10; // Limite aumentado para 10 mídias!
 
 async function processarArquivoParaGemHUD(file) {
-    if (filaMidiasGemHUD.length >= 6) {
-        mostrarToast("⚠️ Limite de 6 arquivos simultâneos na Gem atingido!");
+    if (filaMidiasGemHUD.length >= LIMITE_ANEXOS_GEM) {
+        mostrarToast(`⚠️ Limite máximo de ${LIMITE_ANEXOS_GEM} arquivos na Gem atingido!`);
         return;
     }
 
@@ -4541,7 +4542,7 @@ async function processarArquivoParaGemHUD(file) {
         return;
     }
 
-    if (mime === 'application/pdf' || mime.startsWith('audio/')) {
+    if (mime === 'application/pdf' || mime.startsWith('audio/') || mime.startsWith('video/')) {
         const dataUrl = await new Promise((res) => {
             const reader = new FileReader();
             reader.onload = (e) => res(e.target.result);
@@ -4559,7 +4560,7 @@ async function processarArquivoParaGemHUD(file) {
         return;
     }
 
-    if (mime.startsWith('text/') || nome.endsWith('.csv') || nome.endsWith('.txt') || nome.endsWith('.json')) {
+    if (mime.startsWith('text/') || /\.(csv|txt|json|xml|log|ofx)$/i.test(nome)) {
         const textoLido = await file.text();
         filaMidiasGemHUD.push({
             mimeType: 'text/plain',
@@ -4573,7 +4574,94 @@ async function processarArquivoParaGemHUD(file) {
         return;
     }
 
-    mostrarToast("⚠️ Use Print, PDF, Áudio ou CSV/TXT.");
+    mostrarToast("⚠️ Formato não suportado. Use Print, PDF, Áudio ou CSV/TXT.");
+}
+
+// NOVO: Baixa imagens, áudios e PDFs automaticamente a partir dos links da conversa copiada!
+async function baixarMidiaDeUrlParaGemHUD(url, tipoSugerido = 'imagem', nomeSugerido = '') {
+    if (filaMidiasGemHUD.length >= LIMITE_ANEXOS_GEM) return false;
+    if (!url || url.startsWith('javascript:') || url.startsWith('mailto:')) return false;
+
+    // Ignora emojis, avatares minúsculos ou ícones do próprio sistema
+    if (/emoji|avatar|icon|favicon|twemoji|1f6|svg/i.test(url)) return false;
+
+    try {
+        if (url.startsWith('data:')) {
+            const [header, b64] = url.split(',');
+            const mime = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+            if (!b64) return false;
+            filaMidiasGemHUD.push({
+                mimeType: mime,
+                base64Data: b64,
+                previewUrl: mime.startsWith('image/') ? url : '',
+                nome: nomeSugerido || `Midia_${filaMidiasGemHUD.length + 1}`,
+                tipoCurto: mime.startsWith('image/') ? 'imagem' : (mime.includes('pdf') ? 'pdf' : 'audio')
+            });
+            renderizarFilaMidiasGemHUD();
+            return true;
+        }
+
+        // Tenta buscar os bytes reais da imagem/áudio/arquivo copiado da conversa
+        const resp = await fetch(url, { mode: 'cors', credentials: 'omit' }).catch(() => null);
+        if (resp && resp.ok) {
+            const blob = await resp.blob();
+            if (blob.size > 0 && blob.size < 1500 && blob.type.startsWith('image/')) {
+                return false; // Ignora ícones de interface menores que 1.5KB
+            }
+            const ext = blob.type.split('/')[1]?.split(';')[0] || 'bin';
+            const nomeFinal = nomeSugerido || `Midia_Chat_${filaMidiasGemHUD.length + 1}.${ext}`;
+            const file = new File([blob], nomeFinal, { type: blob.type || 'image/jpeg' });
+            await processarArquivoParaGemHUD(file);
+            return true;
+        }
+    } catch (e) {
+        console.warn("Bloqueio CORS na mídia da conversa:", url);
+    }
+    return false;
+}
+
+// Extrai todas as mídias embutidas quando você seleciona a conversa inteira e dá Ctrl+C
+async function extrairMidiasDoHtmlDaConversa(htmlColado) {
+    if (!htmlColado) return 0;
+    let qtdCapturada = 0;
+
+    try {
+        const parser = new DOMParser();
+        const docHtml = parser.parseFromString(htmlColado, 'text/html');
+        const tarefas = [];
+
+        // 1. Imagens no meio da conversa (<img src="...">)
+        docHtml.querySelectorAll('img').forEach(img => {
+            const src = img.getAttribute('src') || img.dataset?.src || '';
+            const w = parseInt(img.getAttribute('width') || '999', 10);
+            const h = parseInt(img.getAttribute('height') || '999', 10);
+            const classe = (img.className || '').toLowerCase();
+
+            if (w < 36 || h < 36 || classe.includes('emoji') || classe.includes('avatar')) return;
+            if (src) tarefas.push(baixarMidiaDeUrlParaGemHUD(src, 'imagem', img.getAttribute('alt') || 'Print_Cliente.jpg'));
+        });
+
+        // 2. Áudios e Vídeos (<audio>, <video>, <source>)
+        docHtml.querySelectorAll('audio, video, audio source, video source').forEach(midia => {
+            const src = midia.getAttribute('src') || '';
+            if (src) tarefas.push(baixarMidiaDeUrlParaGemHUD(src, 'audio', 'Audio_Cliente.ogg'));
+        });
+
+        // 3. Links diretos de Arquivos, PDFs, Imagens ou Áudios na conversa (<a href="...">)
+        docHtml.querySelectorAll('a[href]').forEach(a => {
+            const href = a.getAttribute('href') || '';
+            if (/\.(png|jpe?g|webp|gif|pdf|mp3|ogg|wav|m4a|opus|csv|txt|ofx)(\?.*)?$/i.test(href)) {
+                tarefas.push(baixarMidiaDeUrlParaGemHUD(href, 'arquivo', a.innerText.trim() || 'Arquivo_Chat'));
+            }
+        });
+
+        const resultados = await Promise.all(tarefas.slice(0, LIMITE_ANEXOS_GEM - filaMidiasGemHUD.length));
+        qtdCapturada = resultados.filter(Boolean).length;
+    } catch (err) {
+        console.error("Erro ao varrer HTML da conversa:", err);
+    }
+
+    return qtdCapturada;
 }
 
 function renderizarFilaMidiasGemHUD() {
@@ -4596,28 +4684,28 @@ function renderizarFilaMidiasGemHUD() {
     }
 
     container.style.display = 'flex';
-    container.innerHTML = `<span style="font-size:9.5px; font-weight:800; color:#38bdf8; margin-right:4px;">📎 ANEXOS (${filaMidiasGemHUD.length}):</span>`;
+    container.innerHTML = `<span style="font-size:9.5px; font-weight:800; color:#38bdf8; margin-right:4px;">📎 MÍDIAS NA TELA (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM}):</span>`;
 
     filaMidiasGemHUD.forEach((item, idx) => {
         const chip = doc.createElement('div');
-        chip.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(192, 132, 252, 0.5); padding: 3px 7px; border-radius: 6px; font-size: 10px; color: #f8fafc;';
+        chip.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(192, 132, 252, 0.5); padding: 4px 8px; border-radius: 7px; font-size: 10px; color: #f8fafc;';
 
         let iconePreview = '';
         if (item.tipoCurto === 'imagem') {
-            iconePreview = `<img src="${item.previewUrl}" style="width: 22px; height: 22px; object-fit: cover; border-radius: 4px; cursor: zoom-in;" onclick="abrirLightboxChat('${item.previewUrl}')" title="Clique para ampliar">`;
+            iconePreview = `<img src="${item.previewUrl}" style="width: 38px; height: 38px; object-fit: cover; border-radius: 5px; border: 1px solid #38bdf8; cursor: zoom-in;" onclick="abrirLightboxChat('${item.previewUrl}')" title="Clique para ampliar a imagem na tela">`;
         } else if (item.tipoCurto === 'pdf') {
-            iconePreview = `<span class="material-icons-round" style="font-size:14px; color:#f87171;">picture_as_pdf</span>`;
+            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#f87171;">picture_as_pdf</span>`;
         } else if (item.tipoCurto === 'audio') {
-            iconePreview = `<span class="material-icons-round" style="font-size:14px; color:#34d399;">graphic_eq</span>`;
+            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#34d399;">graphic_eq</span>`;
         } else {
-            iconePreview = `<span class="material-icons-round" style="font-size:14px; color:#60a5fa;">description</span>`;
+            iconePreview = `<span class="material-icons-round" style="font-size:16px; color:#60a5fa;">description</span>`;
         }
 
         const nomeCurto = item.nome.length > 16 ? item.nome.slice(0, 14) + '...' : item.nome;
         chip.innerHTML = `
             ${iconePreview}
             <span style="font-weight:600;">${nomeCurto}</span>
-            <button type="button" onclick="removerMidiaGemHUD(${idx})" style="background:transparent; border:none; color:#f87171; cursor:pointer; font-weight:900; font-size:11px; margin-left:2px;">✕</button>
+            <button type="button" onclick="removerMidiaGemHUD(${idx})" style="background:transparent; border:none; color:#f87171; cursor:pointer; font-weight:900; font-size:12px; margin-left:2px;">✕</button>
         `;
         container.appendChild(chip);
     });
@@ -4642,7 +4730,6 @@ window.removerMidiaGemHUD = function(idx) {
 function turbinarInterfaceMultimodalGem() {
     const doc = obterDocAtivo();
 
-    // Remove o botão "Notas" do HUD imediatamente sem atraso
     doc.querySelectorAll('button[onclick*="hud-notes-drawer"]').forEach(b => b.remove());
     const notesDrawer = doc.getElementById('hud-notes-drawer');
     if (notesDrawer) notesDrawer.remove();
@@ -4651,7 +4738,7 @@ function turbinarInterfaceMultimodalGem() {
     if (!inputGem || inputGem.dataset.multimodalReady === 'true') return;
     inputGem.dataset.multimodalReady = 'true';
 
-    inputGem.placeholder = "Cole aqui a fala/print do cliente (Ctrl+V), arraste PDFs/Áudios, ou digite seu rascunho...";
+    inputGem.placeholder = "Cole a conversa inteira (Texto + Imagens + Áudio + PDF) ou dê Ctrl+V em até 10 prints...";
 
     let fileInput = doc.getElementById('gem-hud-file-input');
     if (!fileInput) {
@@ -4659,7 +4746,7 @@ function turbinarInterfaceMultimodalGem() {
         fileInput.type = 'file';
         fileInput.id = 'gem-hud-file-input';
         fileInput.multiple = true;
-        fileInput.accept = 'image/*,application/pdf,audio/*,.csv,.txt';
+        fileInput.accept = 'image/*,application/pdf,audio/*,video/*,.csv,.txt,.ofx';
         fileInput.style.display = 'none';
         fileInput.onchange = async (ev) => {
             for (const f of Array.from(ev.target.files)) {
@@ -4681,14 +4768,14 @@ function turbinarInterfaceMultimodalGem() {
         const btnAnexar = doc.createElement('button');
         btnAnexar.type = 'button';
         btnAnexar.className = 'btn-gem-media-utility';
-        btnAnexar.setAttribute('data-tip', 'Anexar Print, PDF, Áudio ou CSV (ou apenas dê Ctrl+V na caixa acima!)');
+        btnAnexar.setAttribute('data-tip', 'Anexar até 10 Prints, PDFs, Áudios ou CSV (ou dê Ctrl+V direto na caixa!)');
         btnAnexar.innerHTML = `<span class="material-icons-round" style="font-size:13px; color:#38bdf8;">attach_file</span> <span>Mídia/PDF</span>`;
         btnAnexar.onclick = () => doc.getElementById('gem-hud-file-input')?.click();
 
         const btnRaioX = doc.createElement('button');
         btnRaioX.type = 'button';
         btnRaioX.className = 'btn-gem-media-utility scan-mode';
-        btnRaioX.setAttribute('data-tip', 'Lê o erro na imagem/PDF, extrai CPF/Boleto/Unidade do print e já monta a resposta!');
+        btnRaioX.setAttribute('data-tip', 'Lê o erro na imagem/PDF/áudio, extrai dados e já monta a resposta!');
         btnRaioX.innerHTML = `<span class="material-icons-round" style="font-size:13px; color:#e879f9;">center_focus_strong</span> <span>Ler Print</span>`;
         btnRaioX.onclick = () => executarGemNoHUD('raiox');
 
@@ -4697,50 +4784,42 @@ function turbinarInterfaceMultimodalGem() {
         barraBotoes.insertBefore(btnRaioX, btnLixeira);
     }
 
+    // INTERCEPTADOR INTELIGENTE DE CTRL+V NA IA GEM (TEXTO + IMAGENS + ÁUDIO + ARQUIVOS JUNTOS!)
     inputGem.addEventListener('paste', async (e) => {
         const clipboard = e.clipboardData;
         if (!clipboard) return;
-        let capturouArquivo = false;
+        let qtdArquivosDiretos = 0;
 
+        // 1. Captura arquivos binários diretos no Ctrl+V (Print Screen, Copiar Imagem ou arquivos copiados de pastas)
         if (clipboard.items) {
             for (const item of Array.from(clipboard.items)) {
                 if (item.kind === 'file') {
                     const file = item.getAsFile();
                     if (file) {
-                        capturouArquivo = true;
+                        qtdArquivosDiretos++;
                         await processarArquivoParaGemHUD(file);
                     }
                 }
             }
         }
 
+        // 2. Quando você copia uma conversa inteira (Texto + Imagem + Áudio + PDF selecionados juntos):
         const htmlColado = clipboard.getData('text/html');
-        if (htmlColado && htmlColado.includes('<img')) {
-            try {
-                const parser = new DOMParser();
-                const docHtml = parser.parseFromString(htmlColado, 'text/html');
-                const imgs = docHtml.querySelectorAll('img');
-                for (const img of Array.from(imgs)) {
-                    const src = img.getAttribute('src') || '';
-                    if (src.startsWith('data:image/')) {
-                        const base64Limpo = src.split(',')[1];
-                        filaMidiasGemHUD.push({
-                            mimeType: 'image/jpeg',
-                            base64Data: base64Limpo,
-                            previewUrl: src,
-                            nome: 'Print_Conversa.jpg',
-                            tipoCurto: 'imagem'
-                        });
-                        capturouArquivo = true;
-                    }
-                }
-                if (capturouArquivo) renderizarFilaMidiasGemHUD();
-            } catch (eHtml) {}
+        let qtdExtraidaDoHtml = 0;
+        if (htmlColado) {
+            qtdExtraidaDoHtml = await extrairMidiasDoHtmlDaConversa(htmlColado);
         }
 
-        if (capturouArquivo) {
-            mostrarToast("🖼️ Mídia capturada do Ctrl+V e pronta para análise!");
-        }
+        // 3. Verifica se o texto da conversa tem a palavra "imagem" solta indicando print no chat
+        setTimeout(() => {
+            salvarTextoRascunhoGem(inputGem.value);
+            if (qtdArquivosDiretos > 0 || qtdExtraidaDoHtml > 0) {
+                mostrarToast(`🖼️ ${qtdArquivosDiretos + qtdExtraidaDoHtml} mídia(s) colada(s) diretamente na tela (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM})!`);
+            } else if (/\bimagem\b/i.test(inputGem.value) && filaMidiasGemHUD.length === 0) {
+                // Caso o site do chat bloqueie o link da imagem por segurança (blob privado), avisa na hora:
+                mostrarToast("💡 Texto colado! O chat bloqueou o link da foto: clique com botão direito na foto lá no chat ➔ 'Copiar imagem' e dê Ctrl+V aqui!");
+            }
+        }, 80);
     });
 
     inputGem.addEventListener('dragover', (e) => {
@@ -4757,7 +4836,7 @@ function turbinarInterfaceMultimodalGem() {
             for (const f of Array.from(e.dataTransfer.files)) {
                 await processarArquivoParaGemHUD(f);
             }
-            mostrarToast(`📎 ${e.dataTransfer.files.length} arquivo(s) anexado(s)!`);
+            mostrarToast(`📎 ${e.dataTransfer.files.length} arquivo(s) anexado(s) (${filaMidiasGemHUD.length}/${LIMITE_ANEXOS_GEM})!`);
         }
     });
 }
