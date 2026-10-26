@@ -2650,6 +2650,9 @@ function mostrarToast(msg) {
     });
 })();
 
+// ==============================================================
+// INICIALIZAÇÃO SEGURA DO COCKPIT & COPILOT HUD
+// ==============================================================
 window.onload = () => {
     const salvo = JSON.parse(localStorage.getItem('sc_pensamentos_espirita'));
     if (salvo && salvo[0]) {
@@ -2658,13 +2661,23 @@ window.onload = () => {
     }
     iniciarCosmosInfinito();
     atualizarBadgeSaudacao();
-    document.getElementById('txt-view-mode').innerText = modoCompacto ? "Expandir" : "Compactar";
+    
+    const btnViewMode = document.getElementById('txt-view-mode');
+    if (btnViewMode) btnViewMode.innerText = modoCompacto ? "Expandir" : "Compactar";
+    
     renderizarPillsCategorias();
     renderizarCards();
 
     // Restaura a aba exata em que você estava antes de apertar F5!
     const moduloSalvo = localStorage.getItem('sc_modulo_ativo') || 'atendimento';
     trocarModulo(moduloSalvo);
+
+    // Garante que a barra de ferramentas superior e o HUD da IA Gem apareçam imediatamente
+    setTimeout(() => {
+        if (typeof inicializarBarraCopilotHUD === 'function') {
+            inicializarBarraCopilotHUD();
+        }
+    }, 150);
 };
 
 
