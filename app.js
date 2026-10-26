@@ -2661,23 +2661,13 @@ window.onload = () => {
     }
     iniciarCosmosInfinito();
     atualizarBadgeSaudacao();
-    
-    const btnViewMode = document.getElementById('txt-view-mode');
-    if (btnViewMode) btnViewMode.innerText = modoCompacto ? "Expandir" : "Compactar";
-    
+    document.getElementById('txt-view-mode').innerText = modoCompacto ? "Expandir" : "Compactar";
     renderizarPillsCategorias();
     renderizarCards();
 
     // Restaura a aba exata em que você estava antes de apertar F5!
     const moduloSalvo = localStorage.getItem('sc_modulo_ativo') || 'atendimento';
     trocarModulo(moduloSalvo);
-
-    // Garante que a barra de ferramentas superior e o HUD da IA Gem apareçam imediatamente
-    setTimeout(() => {
-        if (typeof inicializarBarraCopilotHUD === 'function') {
-            inicializarBarraCopilotHUD();
-        }
-    }, 150);
 };
 
 
