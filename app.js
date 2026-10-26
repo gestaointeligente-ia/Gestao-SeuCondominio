@@ -1810,6 +1810,232 @@ function inicializarBarraCopilotHUD() {
 	conectarColagemTotalGemHUD();
 }
 
+// ==============================================================
+// MOTOR NATIVO DE COLAGEM TOTAL NA IA GEM (ATÉ 10 IMAGENS/ÁUDIOS/PDFS)
+// ==============================================================
+window.filaMidiasGemHUD = window.filaMidiasGemHUD || [];
+const MAX_MIDIAS_GEM = 10;
+
+function renderizarGaleriaGemNativa() {
+    const doc = obterDocAtivo();
+    const bar = doc.getElementById('gem-hud-attachments-bar');
+    if (!bar) return;
+
+    if (window.filaMidiasGemHUD.length === 0) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+    }
+
+    bar.style.display = 'flex';
+    bar.innerHTML = `<span style="font-size:10px; font-weight:900; color:#38bdf8; width:100%; margin-bottom:2px;">📸 MÍDIAS COLADAS NA TELA (${window.filaMidiasGemHUD.length}/${MAX_MIDIAS_GEM}) — Clique na imagem para ampliar:</span>`;
+
+    window.filaMidiasGemHUD.forEach((m, idx) => {
+        const card = doc.createElement('div');
+        card.style.cssText = 'position:relative; display:inline-flex; align-items:center; gap:6px; background:#090d1a; border:1px solid #38bdf8; border-radius:8px; padding:4px 8px 4px 4px; box-shadow:0 0 10px rgba(56,189,248,0.2);';
+
+        let midiaVisual = '';
+        if (m.tipoCurto === 'imagem') {
+            midiaVisual = `<img src="${m.previewUrl}" style="width:54px; height:54px; object-fit:cover; border-radius:6px; cursor:zoom-in; background:#000;" onclick="abrirLightboxChat('${m.previewUrl}')">`;
+        } else if (m.tipoCurto === 'audio') {
+            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#34d399; padding:6px;">graphic_eq</span>`;
+        } else if (m.tipoCurto === 'pdf') {
+            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#f87171; padding:6px;">picture_as_pdf</span>`;
+        } else {
+            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#60a5fa; padding:6px;">description</span>`;
+        }
+
+        const nomeCurto = (m.nome || 'Mídia').slice(0, 15);
+        card.innerHTML = `
+            ${midiaVisual}
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:10px; font-weight:700; color:#f8fafc;">${nomeCurto}</span>
+                <span style="font-size:8.5px; color:#6ee7b7;">${m.base64Data ? '✓ Pronta p/ IA' : '👁️ Visível na tela'}</span>
+            </div>
+            <button type="button" onclick="removerMidiaGemNativa(${idx})" style="background:#ef4444; color:#fff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:900; cursor:pointer; margin-left:4px;">✕</button>
+        `;
+        bar.appendChild(card);
+    });
+}
+
+window.removerMidiaGemNativa = function(idx) {
+    window.filaMidiasGemHUD.splice(idx, 1);
+    renderizarGaleriaGemNativa();
+};
+
+async function adicionarArquivoFisicoGem(file) {
+    if (window.filaMidiasGemHUD.length >= MAX_MIDIAS_GEM) {
+        mostrarToast(`⚠️ Limite de ${MAX_MIDIAS_GEM} mídias atingido!`);
+        return;
+    }
+    const mime = file.type || '';
+    const nome = file.name || `Print_${window.filaMidiasGemHUD.length + 1}.jpg`;
+
+    if (mime.startsWith('image/')) {
+        const dataUrl = await comprimirImagemParaBase64(file, 1400, 0.85);
+        window.filaMidiasGemHUD.push({
+            mimeType: 'image/jpeg',
+            base64Data: dataUrl.split(',')[1],
+            previewUrl: dataUrl,
+            nome,
+            tipoCurto: 'imagem'
+        });
+    } else if (mime.startsWith('text/') || /\.(csv|txt|json|ofx)$/i.test(nome)) {
+        const txt = await file.text();
+        window.filaMidiasGemHUD.push({
+            mimeType: 'text/plain',
+            base64Data: null,
+            previewUrl: '',
+            nome,
+            tipoCurto: 'texto',
+            textoExtraido: txt.slice(0, 30000)
+        });
+    } else {
+        const dataUrl = await new Promise(res => {
+            const r = new FileReader();
+            r.onload = e => res(e.target.result);
+            r.readAsDataURL(file);
+        });
+        window.filaMidiasGemHUD.push({
+            mimeType: mime || 'application/octet-stream',
+            base64Data: dataUrl.split(',')[1],
+            previewUrl: '',
+            nome,
+            tipoCurto: mime.includes('pdf') ? 'pdf' : (mime.startsWith('audio/') ? 'audio' : 'arquivo')
+        });
+    }
+    renderizarGaleriaGemNativa();
+}
+
+window.aoEscolherArquivosGemNativo = async function(ev) {
+    for (const f of Array.from(ev.target.files || [])) {
+        await adicionarArquivoFisicoGem(f);
+    }
+    ev.target.value = '';
+};
+
+// Converte qualquer URL de imagem do HTML copiado para aparecer na tela NA HORA (mesmo se o fetch tiver bloqueio CORS!)
+async function capturarUrlMidiaDaConversa(url, tipo, nome) {
+    if (window.filaMidiasGemHUD.length >= MAX_MIDIAS_GEM) return false;
+    if (!url || url.startsWith('javascript:') || /emoji|twemoji|avatar|favicon|icon/i.test(url)) return false;
+
+    // 1. Se já vier como data:image/...
+    if (url.startsWith('data:')) {
+        const [hdr, b64] = url.split(',');
+        const mime = hdr.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        window.filaMidiasGemHUD.push({
+            mimeType: mime,
+            base64Data: b64,
+            previewUrl: url,
+            nome: nome || `Print_${window.filaMidiasGemHUD.length + 1}.jpg`,
+            tipoCurto: tipo
+        });
+        renderizarGaleriaGemNativa();
+        return true;
+    }
+
+    // 2. Tenta extrair os bytes via Image + Canvas ou Fetch
+    try {
+        const resp = await fetch(url, { credentials: 'include' }).catch(() => fetch(url));
+        if (resp && resp.ok) {
+            const blob = await resp.blob();
+            if (blob.size > 1200) {
+                const file = new File([blob], nome || `Midia_${window.filaMidiasGemHUD.length + 1}`, { type: blob.type || 'image/jpeg' });
+                await adicionarArquivoFisicoGem(file);
+                return true;
+            }
+        }
+    } catch (e) {}
+
+    // 3. FALLBACK INFALÍVEL DE TELA: Se o servidor do chat bloquear leitura binária (CORS), cola e exibe a imagem diretamente na tela via URL!
+    if (tipo === 'imagem') {
+        window.filaMidiasGemHUD.push({
+            mimeType: 'image/jpeg',
+            base64Data: null,
+            previewUrl: url,
+            nome: nome || `Imagem_Chat_${window.filaMidiasGemHUD.length + 1}`,
+            tipoCurto: 'imagem'
+        });
+        renderizarGaleriaGemNativa();
+        return true;
+    }
+    return false;
+}
+
+function conectarColagemTotalGemHUD() {
+    const doc = obterDocAtivo();
+    const inputGem = doc.getElementById('gemini-hud-input');
+    if (!inputGem || inputGem.dataset.colagemTotalAtiva === 'true') return;
+    inputGem.dataset.colagemTotalAtiva = 'true';
+
+    inputGem.addEventListener('paste', async (e) => {
+        const cb = e.clipboardData;
+        if (!cb) return;
+        let colouMidia = 0;
+
+        // A) Procura ficheiros diretos no Ctrl+V (quando copias imagem ou ficheiro direto)
+        if (cb.files && cb.files.length > 0) {
+            for (const f of Array.from(cb.files)) {
+                await adicionarArquivoFisicoGem(f);
+                colouMidia++;
+            }
+        } else if (cb.items) {
+            for (const item of Array.from(cb.items)) {
+                if (item.kind === 'file') {
+                    const f = item.getAsFile();
+                    if (f) {
+                        await adicionarArquivoFisicoGem(f);
+                        colouMidia++;
+                    }
+                }
+            }
+        }
+
+        // B) Procura imagens, áudios e PDFs dentro do HTML da conversa selecionada!
+        const html = cb.getData('text/html');
+        if (html) {
+            const parser = new DOMParser();
+            const docHtml = parser.parseFromString(html, 'text/html');
+
+            // Imagens (src, data-src ou background-image)
+            const imgs = docHtml.querySelectorAll('img');
+            for (const img of Array.from(imgs)) {
+                const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+                const w = parseInt(img.getAttribute('width') || '500', 10);
+                if (src && w >= 32) {
+                    const ok = await capturarUrlMidiaDaConversa(src, 'imagem', img.getAttribute('alt') || 'Print_Conversa.jpg');
+                    if (ok) colouMidia++;
+                }
+            }
+
+            // Áudios e vídeos
+            const audios = docHtml.querySelectorAll('audio, video, source');
+            for (const au of Array.from(audios)) {
+                const src = au.getAttribute('src') || '';
+                if (src) {
+                    const ok = await capturarUrlMidiaDaConversa(src, 'audio', 'Audio_Conversa.ogg');
+                    if (ok) colouMidia++;
+                }
+            }
+
+            // Links de ficheiros/PDFs
+            const links = docHtml.querySelectorAll('a[href]');
+            for (const a of Array.from(links)) {
+                const href = a.getAttribute('href') || '';
+                if (/\.(pdf|png|jpe?g|webp|mp3|ogg|wav|csv|ofx)(\?.*)?$/i.test(href)) {
+                    const tipo = href.toLowerCase().includes('.pdf') ? 'pdf' : 'arquivo';
+                    const ok = await capturarUrlMidiaDaConversa(href, tipo, a.innerText.trim() || 'Anexo_Chat');
+                    if (ok) colouMidia++;
+                }
+            }
+        }
+
+        if (colouMidia > 0) {
+            mostrarToast(`📸 +${colouMidia} mídia(s) colada(s) diretamente na tela!`);
+        }
+    });
+}
+
 // Alterna a altura da caixa da Gem (Compacta -> Média -> Grande) sem precisar daquela alça branca que bugava a borda!
 function mudarAlturaCaixaGem() {
     const doc = obterDocAtivo();
@@ -1888,6 +2114,7 @@ function renderizarEditorAcoesRapidas() {
         container.appendChild(row);
     });
 }
+
 
 function atualizarCampoAcaoRapida(idx, campo, valor) {
     if (!listaAcoesRapidas[idx]) return;
