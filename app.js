@@ -1828,31 +1828,33 @@ function renderizarGaleriaGemNativa() {
     }
 
     bar.style.display = 'flex';
-    bar.innerHTML = `<span style="font-size:10px; font-weight:900; color:#38bdf8; width:100%; margin-bottom:2px;">📸 MÍDIAS COLADAS NA TELA (${window.filaMidiasGemHUD.length}/${MAX_MIDIAS_GEM}) — Clique na imagem para ampliar:</span>`;
+    bar.innerHTML = `<span style="font-size:9.5px; font-weight:900; color:#38bdf8; width:100%; margin-bottom:1px;">📸 MÍDIAS COLADAS (${window.filaMidiasGemHUD.length}/${MAX_MIDIAS_GEM}):</span>`;
 
     window.filaMidiasGemHUD.forEach((m, idx) => {
         const card = doc.createElement('div');
-        card.style.cssText = 'position:relative; display:inline-flex; align-items:center; gap:6px; background:#090d1a; border:1px solid #38bdf8; border-radius:8px; padding:4px 8px 4px 4px; box-shadow:0 0 10px rgba(56,189,248,0.2);';
+        // Redução do gap, padding, border-radius e box-shadow
+        card.style.cssText = 'position:relative; display:inline-flex; align-items:center; gap:5px; background:#090d1a; border:1px solid #38bdf8; border-radius:6px; padding:3px 6px 3px 3px; box-shadow:0 0 8px rgba(56,189,248,0.15);';
 
         let midiaVisual = '';
         if (m.tipoCurto === 'imagem') {
-            midiaVisual = `<img src="${m.previewUrl}" style="width:54px; height:54px; object-fit:cover; border-radius:6px; cursor:zoom-in; background:#000;" onclick="abrirLightboxChat('${m.previewUrl}')">`;
+            // Imagem reduzida para 32x32
+            midiaVisual = `<img src="${m.previewUrl}" style="width:32px; height:32px; object-fit:cover; border-radius:4px; cursor:zoom-in; background:#000;" onclick="abrirLightboxChat('${m.previewUrl}')">`;
         } else if (m.tipoCurto === 'audio') {
-            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#34d399; padding:6px;">graphic_eq</span>`;
+            midiaVisual = `<span class="material-icons-round" style="font-size:18px; color:#34d399; padding:2px;">graphic_eq</span>`;
         } else if (m.tipoCurto === 'pdf') {
-            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#f87171; padding:6px;">picture_as_pdf</span>`;
+            midiaVisual = `<span class="material-icons-round" style="font-size:18px; color:#f87171; padding:2px;">picture_as_pdf</span>`;
         } else {
-            midiaVisual = `<span class="material-icons-round" style="font-size:24px; color:#60a5fa; padding:6px;">description</span>`;
+            midiaVisual = `<span class="material-icons-round" style="font-size:18px; color:#60a5fa; padding:2px;">description</span>`;
         }
 
         const nomeCurto = (m.nome || 'Mídia').slice(0, 15);
         card.innerHTML = `
             ${midiaVisual}
-            <div style="display:flex; flex-direction:column; gap:2px;">
-                <span style="font-size:10px; font-weight:700; color:#f8fafc;">${nomeCurto}</span>
-                <span style="font-size:8.5px; color:#6ee7b7;">${m.base64Data ? '✓ Pronta p/ IA' : '👁️ Visível na tela'}</span>
+            <div style="display:flex; flex-direction:column; gap:0px;">
+                <span style="font-size:9px; font-weight:700; color:#f8fafc;">${nomeCurto}</span>
+                <span style="font-size:7.5px; color:#6ee7b7;">${m.base64Data ? '✓ Pronta' : '👁️ Tela'}</span>
             </div>
-            <button type="button" onclick="removerMidiaGemNativa(${idx})" style="background:#ef4444; color:#fff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:900; cursor:pointer; margin-left:4px;">✕</button>
+            <button type="button" onclick="removerMidiaGemNativa(${idx})" style="background:#ef4444; color:#fff; border:none; border-radius:50%; width:14px; height:14px; font-size:9px; font-weight:900; cursor:pointer; margin-left:2px; display:flex; align-items:center; justify-content:center;">✕</button>
         `;
         bar.appendChild(card);
     });
