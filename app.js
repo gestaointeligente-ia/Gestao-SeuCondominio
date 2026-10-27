@@ -1051,7 +1051,8 @@ async function sincronizarComNuvem() {
             renderizarPillsCategorias();
             renderizarCards();
         }
-        mostrarToast(`Sincronizado! ${listaScripts.length} respostas na nuvem.`);
+        const qtdCardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA').length;
+        mostrarToast(`Sincronizado! ${qtdCardsAtendimento} cards na nuvem.`);
     } catch (err) {
         mostrarToast("Salvo no PC!");
     }
@@ -1499,6 +1500,14 @@ REGRAS INEGOCIÁVEIS DE IDENTIDADE E POSTURA:
 if (!configGeminiGem.instrucaoGem || /Gem especialista|assistente do Ricardo/i.test(configGeminiGem.instrucaoGem)) {
     configGeminiGem.instrucaoGem = INSTRUCAO_PROFISSIONAL_RICARDO;
     localStorage.setItem('sc_gemini_gem_config', JSON.stringify(configGeminiGem));
+}
+
+function obterJanelaAtiva() {
+    return (janelaPiPAtual && !janelaPiPAtual.closed) ? janelaPiPAtual : window;
+}
+
+function obterDocAtivo() {
+    return (janelaPiPAtual && !janelaPiPAtual.closed) ? janelaPiPAtual.document : document;
 }
 
 // Espelha todas as funções do sistema na janela flutuante para que 100% dos botões funcionem lá dentro!
@@ -4708,14 +4717,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (errCards) throw errCards;
 
-            if (Array.isArray(cardsNuvem) && cardsNuvem.length > 0) {
+           if (Array.isArray(cardsNuvem) && cardsNuvem.length > 0) {
                 listaScripts = cardsNuvem;
                 ['sc_cockpit_scripts_v3', 'sc_cockpit_scripts_v4', 'sc_cockpit_scripts_v5'].forEach(k => {
                     localStorage.setItem(k, JSON.stringify(listaScripts));
                 });
                 renderizarPillsCategorias();
                 renderizarCards();
-                mostrarToast(`☁️ ${listaScripts.length} cards carregados do seu Cofre Supabase!`);
+                inicializarBarraCopilotHUD();
+
+                const qtdCardsAtendimento = listaScripts.filter(s => s.categoria !== 'Prompts IA').length;
+                mostrarToast(`☁️ ${qtdCardsAtendimento} cards carregados do seu Cofre Supabase!`);
             } else if (listaScripts.length > 0) {
                 // Se o Supabase estiver vazio mas você tiver cards locais, sobe eles para a nuvem
                 await sincronizarComNuvem();
