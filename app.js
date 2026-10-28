@@ -1433,7 +1433,7 @@ function importarBackupArquivo(event) {
 
 
 // ==============================================================
-// SUPER JANELA FLUTUANTE (100% FUNCIONAL) + IA GEM COMPACTA + CÉREBRO 77 CARDS
+// SUPER JANELA FLUTUANTE (100% FUNCIONAL) + IA GEM COMPACTA + CÉREBRO CARDS
 // ==============================================================
 let janelaPiPAtual = null;
 let vigiaFechamentoPiP = null;
@@ -1734,7 +1734,7 @@ function inicializarBarraCopilotHUD() {
                 <input type="file" id="gem-hud-file-input" multiple accept="image/*,application/pdf,audio/*,video/*,.csv,.txt,.ofx" style="display:none;" onchange="aoEscolherArquivosGemNativo(event)">
 
                 <div style="display:flex; gap:5px; flex-wrap:wrap; align-items:stretch; width:100%;">
-                    <button type="button" class="btn-hud-action btn-hud-ai-gem" style="flex:1 1 95px; justify-content:center; padding:7px 6px; font-size:10px; font-weight:800;" onclick="executarGemNoHUD('responder')" data-tip="Consulta seus 77 cards + sua Gem + Pesquisa Ampla!">
+                    <button type="button" class="btn-hud-action btn-hud-ai-gem" style="flex:1 1 95px; justify-content:center; padding:7px 6px; font-size:10px; font-weight:800;" onclick="executarGemNoHUD('responder')" data-tip="Consulta seus cards + sua Gem + Pesquisa Ampla!">
                         <span class="material-icons-round" style="font-size:12px;">bolt</span> ⚡ Responder
                     </button>
                     <button type="button" class="btn-hud-action" style="flex:1 1 95px; justify-content:center; padding:7px 6px; font-size:10px; font-weight:800; border-color:var(--neon-blue); color:#ffffff; background:linear-gradient(135deg, rgba(56,189,248,0.28), rgba(14,165,233,0.14));" onclick="executarGemNoHUD('lapidar')" data-tip="Transforma seu rascunho rápido em uma resposta perfeita!">
@@ -2268,7 +2268,7 @@ function compilarCerebroCompletoCockpit() {
         }
     }
 
-    return `\n\n=== MODO HÍBRIDO INTELIGENTE: 77 CARDS + SUA GEM + PESQUISA AMPLA ===
+    return `\n\n=== MODO HÍBRIDO INTELIGENTE: CARDS + SUA GEM + PESQUISA AMPLA ===
 1. PRIORIDADE 1 (BASE DO COCKPIT): Verifique primeiro se a dúvida do cliente está coberta nos ${cardsAtendimento.length} Cards Oficiais ou nas Anotações Fixadas abaixo. Se estiver, use exatamente o procedimento e caminho de menu deles.
 2. PRIORIDADE 2 (INTELIGÊNCIA AMPLA & BUSCA): Se a pergunta for sobre algo novo, erro técnico externo, regras bancárias (FEBRABAN, PIX, boletos, OFX), legislação condominial, informática ou qualquer assunto que NÃO esteja nos cards, NÃO se limite! Use todo o seu conhecimento amplo de IA e faça buscas para entregar a solução mais inteligente, lógica e completa possível!
 
@@ -2378,11 +2378,11 @@ async function executarGemNoHUD(modo) {
        if (modo === 'desabafo') {
             comando = `O atendente Ricardo digitou este desabafo sobre um cliente difícil/teimoso:\n"${texto}"\n\nTransforme isso em uma resposta CURTA, DIRETA, SECA E FIRME (máximo de 1 a 2 frases curtas) para enviar no chat. Zero rodeios, sem pedir desculpas, sem "compreendo sua frustração" e sem textão: dê o recado técnico na lata, estabelecendo o limite com firmeza profissional. Entregue APENAS a frase pronta para colar, sem asteriscos (**):`;
         } else if (modo === 'lapidar') {
-            comando = `O atendente Ricardo digitou este desabafo/contexto sobre um cliente resistente ou que não entendeu a explicação anterior:\n"${texto}"\n\nTransforme isso em uma resposta com POSTURA DE ESPECIALISTA SÊNIOR: firme, séria, didática e definitiva.\nRegras obrigatórias:\n1. NÃO seja ríspido ("se vire"), mas NÃO seja submisso ou bonzinho demais (zero "peço mil desculpas", zero "compreendo sua frustração", zero diminutivos).\n2. Reexplique a lógica do sistema e o passo a passo de forma tão clara, direta e mastigada que o cliente entenda o motivo técnico e saiba exatamente o que fazer (ou o que compete à administração/síndico fazer) sem ter como retrucar.\n3. Consulte os 77 Cards se precisar citar o caminho exato da tela.\n4. Entregue APENAS a mensagem pronta para dar Ctrl+C e Ctrl+V no chat, sem asteriscos (**):`;
+            comando = `O atendente Ricardo digitou este desabafo/contexto sobre um cliente resistente ou que não entendeu a explicação anterior:\n"${texto}"\n\nTransforme isso em uma resposta com POSTURA DE ESPECIALISTA SÊNIOR: firme, séria, didática e definitiva.\nRegras obrigatórias:\n1. NÃO seja ríspido ("se vire"), mas NÃO seja submisso ou bonzinho demais (zero "peço mil desculpas", zero "compreendo sua frustração", zero diminutivos).\n2. Reexplique a lógica do sistema e o passo a passo de forma tão clara, direta e mastigada que o cliente entenda o motivo técnico e saiba exatamente o que fazer (ou o que compete à administração/síndico fazer) sem ter como retrucar.\n3. Consulte os Cards se precisar citar o caminho exato da tela.\n4. Entregue APENAS a mensagem pronta para dar Ctrl+C e Ctrl+V no chat, sem asteriscos (**):`;
         } else if (modo === 'triagem') {
             comando = `O cliente enviou isto no chat:\n"${texto}"\n\nFaça uma pergunta de triagem de 1 linha, super direta (estilo chat rápido), pedindo apenas o que falta para olhar no sistema (e-mail, condomínio/unidade ou print do erro). Entregue APENAS a frase pronta para colar:`;
         } else {
-            comando = `Mensagem/dúvida recebida:\n"${texto}"\n\nComo agir:\n1. Consulte primeiro os 77 Cards do SC Smart Cockpit e as instruções da minha Gem.\n2. Se for algo que não está nos cards ou que você precise pesquisar/deduzir (regras de condomínio, erros técnicos, bancos, internet ou qualquer dúvida geral), faça uma busca ampla no seu conhecimento e na web para me dar a resposta mais precisa e resolutiva.\n3. Siga o tom (${diretrizTom}) e entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
+            comando = `Mensagem/dúvida recebida:\n"${texto}"\n\nComo agir:\n1. Consulte primeiro os Cards do SC Smart Cockpit e as instruções da minha Gem.\n2. Se for algo que não está nos cards ou que você precise pesquisar/deduzir (regras de condomínio, erros técnicos, bancos, internet ou qualquer dúvida geral), faça uma busca ampla no seu conhecimento e na web para me dar a resposta mais precisa e resolutiva.\n3. Siga o tom (${diretrizTom}) e entregue APENAS a resposta final pronta para colar no chat, sem asteriscos duplos (**):`;
         }
 
         const respostaBruta = await chamarMotorGeminiAPI(comando, true);
